@@ -1,0 +1,185 @@
+REQUIRE std.fth
+
+REQUIRE snes-std.fth
+
+( from from-page bytes to -- )
+: DMA0-VRAM-LONG-TRANSFER
+  \ Set up VRAM reg.
+  \ Increment after writing high byte
+  0x80 0x2115 C!
+  \ Which word-indexed entry to transfer to.
+  0x2116 !
+
+  \ Number of copies (bytes)
+  0x4305 !
+  \ Page
+  0x4304 C!
+  \ Transfer from
+  0x4302 !
+  \ Copy to addr (2118), then addr+1 (2119).
+  0x1 0x4300 C!
+  \ Copy to VRAM reg
+  0x18 0x4301 C!
+
+  \ Start DMA transfer.
+  0x01 0x420B C!
+;
+
+\ Assumes page 0.
+( from bytes to -- )
+: DMA0-VRAM-TRANSFER
+  0 -ROT DMA0-VRAM-LONG-TRANSFER
+;
+
+32 2* 2* 2* 2* 2* CONSTANT BGTILEMAP-TILE-COUNT
+
+: BGTILEMAP-ENTRIES
+  CELLS
+;
+
+( tilemap-addr -- )
+: ZERO-BGTILEMAP
+  BGTILEMAP-TILE-COUNT BGTILEMAP-ENTRIES ZERO-FILL
+;
+
+\ Set up shadow registers.
+BANK@
+LOWRAM BANK!
+\ BG12NBA/BG34NBA 0x210B
+CREATE BG-BASE-ADDRESSES 1 CELLS ALLOT
+\ BGMODE 0x2105, keep these as cells even though they are bytes so we can easily mask them.
+CREATE BG-MODE 1 CELLS ALLOT
+CREATE BG-LAYER-ENABLE 1 CELLS ALLOT
+\ INIDISP 0x2100, low 4 bits are screen brightness.
+CREATE SCREEN-BRIGHTNESS  1 CELLS ALLOT
+BANK!
+
+: INIT-BASE-REGISTERS
+  0 BG-BASE-ADDRESSES !
+  0 BG-MODE !
+  0 BG-LAYER-ENABLE !
+  0 SCREEN-BRIGHTNESS !
+;
+
+: COPY-BASE-REGISTERS
+  BG-BASE-ADDRESSES @ 0x210B !
+  BG-MODE @ 0x2105 C!
+  BG-LAYER-ENABLE @ 0x212C C!
+  SCREEN-BRIGHTNESS @ 0x2100 C!
+;
+
+\ 0-F, F = max brightness
+: SET-SCREEN-BRIGHTNESS
+  0x000F SCREEN-BRIGHTNESS MASK!
+;
+
+: GET-SCREEN-BRIGHTNESS
+  SCREEN-BRIGHTNESS @ 0x000F AND
+;
+
+\ Returns true when complete.
+: FADE-OUT
+  GET-SCREEN-BRIGHTNESS
+  DUP 0> IF
+    1- SET-SCREEN-BRIGHTNESS
+    FALSE
+  ;THEN
+  DROP TRUE
+;
+
+\ Returns true when complete.
+: FADE-IN
+  GET-SCREEN-BRIGHTNESS
+  DUP 0x000F < IF
+    1+ SET-SCREEN-BRIGHTNESS
+    FALSE
+  ;THEN
+  DROP TRUE
+;
+
+BANK@
+LOWRAM BANK!
+CREATE BG1-SHADOW-TILEMAP BGTILEMAP-TILE-COUNT BGTILEMAP-ENTRIES ALLOT
+BANK!
+
+: ZERO-SHADOW-TILEMAPS
+  BG1-SHADOW-TILEMAP ZERO-BGTILEMAP
+;
+
+: TILEMAP-XY
+  32 PPU-MULT DROP + ;
+
+( tiles -- bytes )
+: 2BIT-8X8-TILES
+  16*
+;
+
+( tiles -- bytes )
+: 4BIT-16X16-TILES
+  [ 16 16 * 2/ COMPILE-LIT ] PPU-MULT DROP
+;
+
+\ vram address is word-indexed.
+: COPY-BG-TO-VRAM ( &tilemap page &vram -- )
+  BGTILEMAP-TILE-COUNT BGTILEMAP-ENTRIES SWAP
+  DMA0-VRAM-LONG-TRANSFER
+;
+
+\ Tilemap base addresses
+\ These are actually 6 bits shifted left 2. The bits we actually care about are
+\ actually the 6 MSBs, but visually they map well from e.g. 0x0C to the 0x0C00
+\ VRAM word address they refer to.
+
+\ 0x0000
+0x00 CONSTANT STARS-BG-MAP-BASE
+\ 0x0400
+0x04 CONSTANT FARSTARS-BG-MAP-BASE
+\ 0x0800
+0x08 CONSTANT TITLE-BG-MAP-BASE
+\ 0x0C00
+0x0C CONSTANT LEVEL-BG-MAP-BASE
+\ 0x1C00
+0x1C CONSTANT END-BG-MAP-BASE
+
+: MAP-BASE-TO-VRAM-WORD
+  SWAPBYTES
+;
+
+\ Tile data base addresses
+\ 4-bit (0-15) VRAM word addresses (0xN000)
+\ 0x1000
+0x01 CONSTANT END-BG-TILE-BASE
+\ 0x3000
+0x03 CONSTANT LEVEL-BG-TILE-BASE
+\ 0x4000
+0x04 CONSTANT TITLE-BG-TILE-BASE
+\ 0x6000
+0x06 CONSTANT STARS-BG-TILE-BASE
+\ 0x7000
+0x07 CONSTANT FARSTARS-BG-TILE-BASE
+
+\ Takes a number between 0-15 that indicates which 0xN000 (word) VRAM addr the
+\ tile base begins at.
+: BG1-TILE-BASE!
+  0x000F BG-BASE-ADDRESSES MASK!
+;
+
+: BG2-TILE-BASE!
+  16* 0x00F0 BG-BASE-ADDRESSES MASK!
+;
+
+: BG3-TILE-BASE!
+  SWAPBYTES 0x0F00 BG-BASE-ADDRESSES MASK!
+;
+
+: TILE-BASE-TO-VRAM-WORD
+  SWAPBYTES 16*
+;
+
+\ OAM tile bases (just one)
+\ 0x2000
+0x01 CONSTANT OAM-TILE-BASE
+
+: OAM-TILE-BASE-TO-VRAM-WORD
+  SWAPBYTES 16* 2*
+;

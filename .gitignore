@@ -1,1 +1,4 @@
-forth/
+dataspace.dump
+assets/farstars.png
+build/*
+link.mapfile

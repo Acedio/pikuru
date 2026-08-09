@@ -1,0 +1,151 @@
+REQUIRE std.fth
+
+REQUIRE audio.fth
+REQUIRE cgram.fth
+REQUIRE vram.fth
+REQUIRE build/title.tiles.fth
+REQUIRE build/title.p1.map.fth
+REQUIRE joypad.fth
+REQUIRE sin-lut.fth
+REQUIRE stars.fth
+
+BANK@
+LOWRAM BANK!
+CREATE TITLE-TICKS 1 CELLS ALLOT
+CREATE TITLE-NMI-STATE 1 CELLS ALLOT
+CREATE TITLE-STATE 1 CELLS ALLOT
+CREATE TITLE-BOBBLE 1 CELLS ALLOT
+BANK!
+
+0 CONSTANT TITLE-LOOP
+1 CONSTANT TITLE-DONE
+
+: COPY-TITLE-TILES-1
+  TITLE-TILES
+  TITLE-TILES-BANK
+  TITLE-TILES-BYTES 2/
+  TITLE-BG-TILE-BASE TILE-BASE-TO-VRAM-WORD
+  DMA0-VRAM-LONG-TRANSFER
+;
+
+: COPY-TITLE-TILES-2
+  TITLE-TILES TITLE-TILES-BYTES 2/ +
+  TITLE-TILES-BANK
+  TITLE-TILES-BYTES 2/
+  TITLE-BG-TILE-BASE TILE-BASE-TO-VRAM-WORD TITLE-TILES-BYTES 2/ 2/ +
+  DMA0-VRAM-LONG-TRANSFER
+;
+
+: COPY-TITLE-PALETTE
+  TITLE-PAL
+  TITLE-PAL-BANK
+  TITLE-PAL-BYTES
+  0x10
+  COPY-CGRAM-PALETTE-LONG
+;
+
+: TITLE-COPY-BG1
+  TITLE-MAP TITLE-BANK
+  TITLE-BG-MAP-BASE MAP-BASE-TO-VRAM-WORD
+  COPY-BG-TO-VRAM
+;
+
+: TITLE-NMI
+  TITLE-NMI-STATE @ CASE
+    0 OF
+      \ Fade out, just in case we're coming from the end screen.
+      FADE-OUT IF
+        1 TITLE-NMI-STATE +!
+      THEN
+    ENDOF
+    1 OF
+      COPY-TITLE-TILES-1
+
+      1 TITLE-NMI-STATE +!
+    ENDOF
+    2 OF
+      COPY-TITLE-TILES-2
+
+      1 TITLE-NMI-STATE +!
+    ENDOF
+    3 OF
+      COPY-TITLE-PALETTE
+
+      1 TITLE-NMI-STATE +!
+    ENDOF
+    4 OF
+      STARS-NMI IF
+        1 TITLE-NMI-STATE +!
+      THEN
+    ENDOF
+    5 OF
+      TITLE-COPY-BG1
+
+      1 TITLE-NMI-STATE +!
+    ENDOF
+    6 OF
+      FADE-IN DROP
+
+      \ Enable layer 1 and turn off OBJ.
+      0x01 0x11 BG-LAYER-ENABLE MASK!
+
+      TITLE-BG-TILE-BASE BG1-TILE-BASE!
+      TITLE-BG-MAP-BASE 0x2107 C!
+      0x11   0x11   BG-MODE           MASK!
+
+      \ Zero X shift for BG1
+      0x00 0x210D C!
+      0x00 0x210D C!
+      \ Sin bobble for BG1 Y shift
+      TITLE-BOBBLE @
+      DUP 0x210E C!
+      HIBYTE 0x210E C!
+
+      STARS-NMI DROP
+    ENDOF
+  ENDCASE
+;
+
+: TITLE-INIT
+  0 TITLE-NMI-STATE !
+  0 TITLE-TICKS !
+  TITLE-LOOP TITLE-STATE !
+
+  STARS-INIT
+;
+
+: 2^12/
+  HIBYTE LSR LSR LSR LSR \ Shift right 12 bits
+  DUP 0x0008 AND 0<> IF 0xFFF0 OR THEN \ Sign extend.
+;
+
+( ticks -- )
+: UPDATE-BOBBLE
+  0xFF AND
+  SIN-LUT \ Output ranges from 0x8001 to 0x7FFF
+  2^12/
+  10 + TITLE-BOBBLE !
+;
+
+\ Returns TRUE when done with title.
+: TITLE-MAIN
+  1 TITLE-TICKS +!
+
+  STARS-MAIN
+
+  TITLE-STATE @ CASE
+    TITLE-LOOP OF
+      JOY1-PRESSED @ BUTTON-START AND 0<> IF
+        AUDIO-PLAY-CHIME
+        TITLE-DONE TITLE-STATE !
+      THEN
+      TITLE-TICKS @ UPDATE-BOBBLE
+    ENDOF
+    TITLE-DONE OF
+      \ Extra state so the sound plays immediately.
+      TRUE EXIT
+    ENDOF
+  ENDCASE
+
+  FALSE
+;
