@@ -35,7 +35,7 @@ INCLUDE std.fth
 HERE CONSTANT MAP-TILES
 MAP-WIDTH MAP-HEIGHT COMPILE-MAP
 
-16 CONSTANT COLUMN-COPY-TILES
+17 CONSTANT COLUMN-COPY-TILES
 32 CONSTANT VRAM-TILEMAP-WIDTH
 32 CONSTANT VRAM-TILEMAP-HEIGHT
 31 CONSTANT VRAM-TILEMAP-WIDTH-MASK
@@ -64,8 +64,6 @@ VRAM-TILEMAP-HEIGHT CELLS ALIGN-TO
 CREATE COLUMN-COPY-BUFFER VRAM-TILEMAP-HEIGHT CELLS ALLOT
 CREATE COLUMN-COPY-VMADD 1 CELLS ALLOT
 CREATE COLUMN-COPY-NMI-READY 1 CELLS ALLOT
-\ For testing
-CREATE COLUMN-COPY-COLUMN 1 CELLS ALLOT
 BANK!
 
 : 64*
@@ -76,17 +74,17 @@ BANK!
 \ The column must not exceed the height of the tilemap.
 : FILL-COLUMN-COPY-BUFFER ( col rowstart -- )
   BANK@ >R
-  2 BANK!
+  PHK BANK! \ Use the map in the current bank.
 
   TUCK \ Save the starting row to determine where to start in COLUMN-COPY-BUFFER
   64* + CELLS \ Byte offset into the map
   MAP-TILES + \ Starting address
-  DUP COLUMN-COPY-TILES 64* + >R \ Final address
+  DUP COLUMN-COPY-TILES 64* CELLS + >R \ Final address
 
   SWAP CELLS COLUMN-COPY-BUFFER + \ Copy target based on the starting row.
-  BEGIN
+  BEGIN ( &map-tiles &buf )
     OVER @ OVER COLUMN-COPY-BUFFER-MASK AND COLUMN-COPY-BUFFER + !
-    CELL+ SWAP MAP-WIDTH + SWAP
+    CELL+ SWAP MAP-WIDTH CELLS + SWAP
   OVER R@ >= UNTIL
   2DROP
   R> DROP
@@ -137,18 +135,93 @@ BANK!
   TRUE COLUMN-COPY-NMI-READY !
 ;
 
+BANK@
+LOWRAM BANK!
+CREATE X-SCROLL 1 CELLS ALLOT
+CREATE Y-SCROLL 1 CELLS ALLOT
+\ These are in pixels but should always align to 16px tile sizes.
+CREATE X-BORDER 1 CELLS ALLOT
+CREATE Y-BORDER 1 CELLS ALLOT
+BANK!
+
+2 16 * CONSTANT BORDER-MARGIN
+
 : MAP-INIT
   FALSE COLUMN-COPY-NMI-READY !
-  0 COLUMN-COPY-COLUMN !
+  8 X-SCROLL !
+  8 Y-SCROLL !
+  \ Start with a centered border.
+  X-SCROLL @ BORDER-MARGIN LSR - X-BORDER !
+  Y-SCROLL @ BORDER-MARGIN LSR - Y-BORDER !
+;
+
+: HANDLE-JOY
+  \ TODO: Also need to enforce scroll limits.
+  BANK0-CALL JOY1-HELD @
+    DUP BANK0-CALL BUTTON-LEFT AND IF
+      -1 X-SCROLL +!
+    THEN
+    DUP BANK0-CALL BUTTON-RIGHT AND IF
+      1 X-SCROLL +!
+    THEN
+    DUP BANK0-CALL BUTTON-UP AND IF
+      -1 Y-SCROLL +!
+    THEN
+    DUP BANK0-CALL BUTTON-DOWN AND IF
+      1 Y-SCROLL +!
+    THEN
+  DROP
+;
+
+: 16/ LSR LSR LSR LSR ;
+
+: UPDATE-SCROLL
+  COLUMN-COPY-NMI-READY @ IF
+  ;THEN
+  \ TODO: Need to mask all of these calculations (because of wrapping)
+  \       How will underflow work? Seems like we might need to use signed math.
+  \       Actually, probably fine, standard comparison ops are already signed
+  \       and we can just assume the player will never move 64 tilemaps away
+  \       (scroll values are 10 bits but we store them in a 16-bit word)
+  X-SCROLL @ X-BORDER @ < IF
+    \ Shift border left by one tile and draw that column.
+    -16 X-BORDER +!
+    X-BORDER @ 16/ 31 AND Y-BORDER @ 16/ 31 AND COPY-SUBCOLUMN
+  ELSE
+    X-SCROLL @ X-BORDER @ BORDER-MARGIN + >= IF
+      \ Shift border right by one tile and draw that column.
+      16 X-BORDER +!
+      \ TODO: 18 should probably be calculated somehow?
+      X-BORDER @ 16/ 18 + 31 AND Y-BORDER @ 16/ 31 AND COPY-SUBCOLUMN
+    THEN
+  THEN
+  Y-SCROLL @ Y-BORDER @ < IF
+    \ Shift border up by one tile and draw that row.
+    -16 Y-BORDER +!
+    \ TODO: Draw row.
+  ELSE
+    Y-SCROLL @ Y-BORDER @ BORDER-MARGIN + >= IF
+      \ Shift border down by one tile and draw that column.
+      16 Y-BORDER +!
+      \ TODO: Draw row.
+    THEN
+  THEN
 ;
 
 : MAP-MAIN
-  COLUMN-COPY-NMI-READY @ 0= IF
-    COLUMN-COPY-COLUMN @
-    DUP 1+ COLUMN-COPY-COLUMN !
-    \ Always copy from row 0
-    24 COPY-SUBCOLUMN
-  THEN
+  HANDLE-JOY
+
+  UPDATE-SCROLL
+;
+
+: SET-BG1-X-SCROLL ( 10-bit-val -- )
+  DUP 0xFF AND 0x210D C!
+  HIBYTE 0x210D C!
+;
+
+: SET-BG1-Y-SCROLL ( 10-bit-val -- )
+  DUP 0xFF AND 0x210E C!
+  HIBYTE 0x210E C!
 ;
 
 : MAP-NMI
@@ -165,6 +238,9 @@ BANK!
   \ Zero X shift for BG1
   0x00 0x210D C!
   0x00 0x210D C!
+
+  X-SCROLL @ SET-BG1-X-SCROLL
+  Y-SCROLL @ SET-BG1-Y-SCROLL
 
   COLUMN-COPY-NMI-READY @ IF
     COLUMN-COPY-DMA
