@@ -10,21 +10,14 @@ INCLUDE std.fth
 
 ( width height -- )
 : COMPILE-MAP
-  * 2*
+  * CELLS
   HERE + >R
-  -3
   BEGIN
-    DUP 0 < IF
-      0 ,
-    ELSE
-      1 ,
-    THEN
-    1+
-    DUP 3 >= IF
-      DROP -3
-    THEN
+    0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
+    0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
+    0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
+    0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
   HERE R@ >= UNTIL
-  DROP
   R> DROP
 ;
 
@@ -32,15 +25,20 @@ INCLUDE std.fth
 64 CONSTANT MAP-WIDTH
 64 CONSTANT MAP-HEIGHT
 
-HERE CONSTANT MAP-TILES
+HERE \ Store HERE so we can create the label for it later.
 MAP-WIDTH MAP-HEIGHT COMPILE-MAP
+CONSTANT MAP-TILES
 
-17 CONSTANT COLUMN-COPY-TILES
+16 CONSTANT TILE-SIZE-PIXELS
+18 CONSTANT COLUMN-COPY-TILES
 32 CONSTANT VRAM-TILEMAP-WIDTH
 32 CONSTANT VRAM-TILEMAP-HEIGHT
 31 CONSTANT VRAM-TILEMAP-WIDTH-MASK
 31 CONSTANT VRAM-TILEMAP-HEIGHT-MASK
 VRAM-TILEMAP-HEIGHT CELLS 1- CONSTANT COLUMN-COPY-BUFFER-MASK
+
+64 16 - TILE-SIZE-PIXELS * CONSTANT MAX-X-SCROLL
+64 12 - TILE-SIZE-PIXELS * CONSTANT MAX-Y-SCROLL
 
 \ ALLOT enough bytes to align to the given stride length.
 \ stride must be a multiple of 2.
@@ -58,12 +56,16 @@ VRAM-TILEMAP-HEIGHT CELLS 1- CONSTANT COLUMN-COPY-BUFFER-MASK
 
 BANK@
 LOWRAM BANK!
-\ TODO: Can probably share this between rows and columns, since we probably
-\ won't be able to calculate both in a single frame anyway?
 VRAM-TILEMAP-HEIGHT CELLS ALIGN-TO
+\ We use a buffer to copy columns, as DMA doesn't support non-1 stride-lengths
+\ from the source (which is row-major).
 CREATE COLUMN-COPY-BUFFER VRAM-TILEMAP-HEIGHT CELLS ALLOT
 CREATE COLUMN-COPY-VMADD 1 CELLS ALLOT
 CREATE COLUMN-COPY-NMI-READY 1 CELLS ALLOT
+\ Rows can just copy as-is from the source.
+CREATE ROW-COPY-SRC-ADDR 1 CELLS ALLOT
+CREATE ROW-COPY-VMADD 1 CELLS ALLOT
+CREATE ROW-COPY-NMI-READY 1 CELLS ALLOT
 BANK!
 
 : 64*
@@ -118,21 +120,71 @@ BANK!
   0x01 0x420B C!
 ;
 
-: 32*
-  2* 2* 2* 2* 2*
+: ROW-COPY-DMA ( -- )
+  \ - Increment after writing high byte and
+  \ - increment by 1.
+  0x80 0x2115 C!
+  \ Writing to row (word addressed)
+  ROW-COPY-VMADD @ 0x2116 !
+
+  \ Number of copies
+  \ TODO: Why 20?
+  20 CELLS 0x4305 !
+  \ Page (compiled to the current page)
+  PHK 0x4304 C!
+  \ Transfer from
+  ROW-COPY-SRC-ADDR @ 0x4302 !
+  \ Copy to addr (2118), then addr+1 (2119).
+  0x1 0x4300 C!
+  \ Copy to VRAM reg
+  0x18 0x4301 C!
+
+  \ Start DMA transfer.
+  0x01 0x420B C!
 ;
 
-\ Determine the index into a row-major map array based on (X,Y)
-: XY-TO-MAP-INDEX ( x y -- index )
-  32* +
+: TILE-DMA ( vram-addr -- )
+  \ - Increment after writing high byte and
+  \ - increment by 1.
+  0x80 0x2115 C!
+  \ Writing to row (word addressed)
+  0x2116 !
+
+  \ Number of copies
+  32 0x4305 !
+  \ Page (compiled to the current page)
+  PHK 0x4304 C!
+  \ Transfer from
+  MAP-TILES 0x4302 !
+  \ Copy to addr (2118), then addr+1 (2119). No increment.
+  0x09 0x4300 C!
+  \ Copy to VRAM reg
+  0x18 0x4301 C!
+
+  \ Start DMA transfer.
+  0x01 0x420B C!
 ;
 
 : COPY-SUBCOLUMN ( col rowstart -- )
   OVER SWAP FILL-COLUMN-COPY-BUFFER
   \ VMADD is a word address. Mask (modulo) the width so we clamp to valid
-  \ columns in the vram tilemap.
+  \ columns in the vram tilemap. We always write a 32-tile column and start at
+  \ row 0.
   VRAM-TILEMAP-WIDTH-MASK AND COLUMN-COPY-VMADD !
   TRUE COLUMN-COPY-NMI-READY !
+;
+
+: 32* 2* 2* 2* 2* 2* ;
+
+\ Does not support wrapping.
+: COPY-SUBROW ( col row -- )
+  \ TODO: This is wrong; The DMA will wrap around to the next row if we exceed
+  \ the 32 tile width of the VRAM tilemap.
+  OVER VRAM-TILEMAP-WIDTH-MASK AND
+  OVER VRAM-TILEMAP-HEIGHT-MASK AND 32* + ROW-COPY-VMADD !
+  64* + CELLS MAP-TILES + ROW-COPY-SRC-ADDR !
+  \ 2DROP MAP-TILES ROW-COPY-SRC-ADDR !
+  TRUE ROW-COPY-NMI-READY !
 ;
 
 BANK@
@@ -144,30 +196,30 @@ CREATE X-BORDER 1 CELLS ALLOT
 CREATE Y-BORDER 1 CELLS ALLOT
 BANK!
 
-2 16 * CONSTANT BORDER-MARGIN
+2 TILE-SIZE-PIXELS * CONSTANT BORDER-MARGIN
 
 : MAP-INIT
   FALSE COLUMN-COPY-NMI-READY !
-  8 X-SCROLL !
-  8 Y-SCROLL !
+  FALSE ROW-COPY-NMI-READY !
+  16 X-SCROLL !
+  16 Y-SCROLL !
   \ Start with a centered border.
   X-SCROLL @ BORDER-MARGIN LSR - X-BORDER !
   Y-SCROLL @ BORDER-MARGIN LSR - Y-BORDER !
 ;
 
 : HANDLE-JOY
-  \ TODO: Also need to enforce scroll limits.
   BANK0-CALL JOY1-HELD @
-    DUP BANK0-CALL BUTTON-LEFT AND IF
+    DUP BANK0-CALL BUTTON-LEFT AND X-SCROLL @ 0 > AND IF
       -1 X-SCROLL +!
     THEN
-    DUP BANK0-CALL BUTTON-RIGHT AND IF
+    DUP BANK0-CALL BUTTON-RIGHT AND X-SCROLL @ MAX-X-SCROLL < AND IF
       1 X-SCROLL +!
     THEN
-    DUP BANK0-CALL BUTTON-UP AND IF
+    DUP BANK0-CALL BUTTON-UP AND Y-SCROLL @ 0 > AND IF
       -1 Y-SCROLL +!
     THEN
-    DUP BANK0-CALL BUTTON-DOWN AND IF
+    DUP BANK0-CALL BUTTON-DOWN AND Y-SCROLL @ MAX-Y-SCROLL < AND IF
       1 Y-SCROLL +!
     THEN
   DROP
@@ -175,36 +227,45 @@ BANK!
 
 : 16/ LSR LSR LSR LSR ;
 
-: UPDATE-SCROLL
-  COLUMN-COPY-NMI-READY @ IF
-  ;THEN
-  \ TODO: Need to mask all of these calculations (because of wrapping)
-  \       How will underflow work? Seems like we might need to use signed math.
-  \       Actually, probably fine, standard comparison ops are already signed
-  \       and we can just assume the player will never move 64 tilemaps away
-  \       (scroll values are 10 bits but we store them in a 16-bit word)
+: UPDATE-X-SCROLL
+  \ TODO: Need to mask all of these calculations (because of wrapping) How will
+  \ underflow work? Seems like we might need to use signed math. Actually,
+  \ probably fine, standard comparison ops are already signed and we can just
+  \ assume the player will never move 64 tilemaps away (scroll values are 10
+  \ bits but we store them in a 16-bit word)
   X-SCROLL @ X-BORDER @ < IF
-    \ Shift border left by one tile and draw that column.
-    -16 X-BORDER +!
-    X-BORDER @ 16/ 31 AND Y-BORDER @ 16/ 31 AND COPY-SUBCOLUMN
-  ELSE
-    X-SCROLL @ X-BORDER @ BORDER-MARGIN + >= IF
-      \ Shift border right by one tile and draw that column.
-      16 X-BORDER +!
-      \ TODO: 18 should probably be calculated somehow?
-      X-BORDER @ 16/ 18 + 31 AND Y-BORDER @ 16/ 31 AND COPY-SUBCOLUMN
-    THEN
-  THEN
+    \ Shift border left by one tile, then draw the next column over.
+    TILE-SIZE-PIXELS NEGATE X-BORDER +!
+    X-BORDER @ 16/ 1- 63 AND Y-BORDER @ 16/ 1- 63 AND COPY-SUBCOLUMN
+  ;THEN
+  X-SCROLL @ X-BORDER @ BORDER-MARGIN + >= IF
+    \ Shift border right by one tile and draw the next right column.
+    TILE-SIZE-PIXELS X-BORDER +!
+    \ TODO: 18 should probably be calculated somehow?
+    X-BORDER @ 16/ 18 + 63 AND Y-BORDER @ 16/ 1- 63 AND COPY-SUBCOLUMN
+  ;THEN
+;
+
+: UPDATE-Y-SCROLL
   Y-SCROLL @ Y-BORDER @ < IF
-    \ Shift border up by one tile and draw that row.
-    -16 Y-BORDER +!
-    \ TODO: Draw row.
-  ELSE
-    Y-SCROLL @ Y-BORDER @ BORDER-MARGIN + >= IF
-      \ Shift border down by one tile and draw that column.
-      16 Y-BORDER +!
-      \ TODO: Draw row.
-    THEN
+    \ Shift border up by one tile, then draw the next row above.
+    TILE-SIZE-PIXELS NEGATE Y-BORDER +!
+    X-BORDER @ 16/ 1- 63 AND Y-BORDER @ 16/ 1- 63 AND COPY-SUBROW
+  ;THEN
+  Y-SCROLL @ Y-BORDER @ BORDER-MARGIN + >= IF
+    \ Shift border down by one tile and draw the next column below.
+    TILE-SIZE-PIXELS Y-BORDER +!
+    \ TODO: 16 Should be calculated as well.
+    X-BORDER @ 16/ 1- 63 AND Y-BORDER @ 16/ 16 + 63 AND COPY-SUBROW
+  ;THEN
+;
+
+: UPDATE-SCROLL
+  COLUMN-COPY-NMI-READY @ 0= IF
+    UPDATE-X-SCROLL
+  THEN
+  ROW-COPY-NMI-READY @ 0= IF
+    UPDATE-Y-SCROLL
   THEN
 ;
 
@@ -242,9 +303,15 @@ BANK!
   X-SCROLL @ SET-BG1-X-SCROLL
   Y-SCROLL @ SET-BG1-Y-SCROLL
 
+  0x1000 TILE-DMA
+
   COLUMN-COPY-NMI-READY @ IF
     COLUMN-COPY-DMA
     FALSE COLUMN-COPY-NMI-READY !
+  THEN
+  ROW-COPY-NMI-READY @ IF
+    ROW-COPY-DMA
+    FALSE ROW-COPY-NMI-READY !
   THEN
 ;
 
