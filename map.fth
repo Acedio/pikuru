@@ -31,6 +31,7 @@ CONSTANT MAP-TILES
 
 16 CONSTANT TILE-SIZE-PIXELS
 18 CONSTANT COLUMN-COPY-TILES
+20 CONSTANT ROW-COPY-TILES
 32 CONSTANT VRAM-TILEMAP-WIDTH
 32 CONSTANT VRAM-TILEMAP-HEIGHT
 31 CONSTANT VRAM-TILEMAP-WIDTH-MASK
@@ -38,7 +39,7 @@ CONSTANT MAP-TILES
 VRAM-TILEMAP-HEIGHT CELLS 1- CONSTANT COLUMN-COPY-BUFFER-MASK
 
 64 16 - TILE-SIZE-PIXELS * CONSTANT MAX-X-SCROLL
-64 12 - TILE-SIZE-PIXELS * CONSTANT MAX-Y-SCROLL
+64 14 - TILE-SIZE-PIXELS * CONSTANT MAX-Y-SCROLL
 
 \ ALLOT enough bytes to align to the given stride length.
 \ stride must be a multiple of 2.
@@ -60,11 +61,11 @@ VRAM-TILEMAP-HEIGHT CELLS ALIGN-TO
 \ We use a buffer to copy columns, as DMA doesn't support non-1 stride-lengths
 \ from the source (which is row-major).
 CREATE COLUMN-COPY-BUFFER VRAM-TILEMAP-HEIGHT CELLS ALLOT
-CREATE COLUMN-COPY-VMADD 1 CELLS ALLOT
+CREATE COLUMN-COPY-VMADDR 1 CELLS ALLOT
 CREATE COLUMN-COPY-NMI-READY 1 CELLS ALLOT
 \ Rows can just copy as-is from the source.
 CREATE ROW-COPY-SRC-ADDR 1 CELLS ALLOT
-CREATE ROW-COPY-VMADD 1 CELLS ALLOT
+CREATE ROW-COPY-VMADDR 1 CELLS ALLOT
 CREATE ROW-COPY-NMI-READY 1 CELLS ALLOT
 BANK!
 
@@ -103,7 +104,7 @@ BANK!
   \ - increment by 32.
   0x81 0x2115 C!
   \ Writing to column (word addressed)
-  COLUMN-COPY-VMADD @ 0x2116 !
+  COLUMN-COPY-VMADDR @ 0x2116 !
 
   \ Number of copies
   VRAM-TILEMAP-HEIGHT CELLS 0x4305 !
@@ -120,16 +121,27 @@ BANK!
   0x01 0x420B C!
 ;
 
+: BREAK-INTO-TWO-ROW-COUNTS
+( starting-vram-x desired-width -- pre-wrap-count post-wrap-count )
+  2DUP + VRAM-TILEMAP-WIDTH < IF
+    SWAP DROP 0
+  ;THEN
+  VRAM-TILEMAP-WIDTH ROT -
+  TUCK -
+;
+
 : ROW-COPY-DMA ( -- )
   \ - Increment after writing high byte and
   \ - increment by 1.
   0x80 0x2115 C!
   \ Writing to row (word addressed)
-  ROW-COPY-VMADD @ 0x2116 !
+  ROW-COPY-VMADDR @ DUP 0x2116 !
+  \ Determine how many tiles to write, in case we're crossing a tilemap
+  \ boundary. Store the second count for later.
+  VRAM-TILEMAP-WIDTH-MASK AND ROW-COPY-TILES BREAK-INTO-TWO-ROW-COUNTS >R
 
   \ Number of copies
-  \ TODO: Why 20?
-  20 CELLS 0x4305 !
+  CELLS 0x4305 !
   \ Page (compiled to the current page)
   PHK 0x4304 C!
   \ Transfer from
@@ -138,6 +150,20 @@ BANK!
   0x1 0x4300 C!
   \ Copy to VRAM reg
   0x18 0x4301 C!
+
+  \ Start DMA transfer.
+  0x01 0x420B C!
+
+  \ Now for the remaining (wrapped) tiles (the remainder from the
+  \ BREAK-INTO-TWO-ROW-COUNTS above). If zero, just exit.
+  R> DUP 0= IF DROP ;THEN
+
+  \ Number of copies
+  CELLS 0x4305 !
+  \ Start copying to the beginning of the row the above copy was for.
+  ROW-COPY-VMADDR @ VRAM-TILEMAP-WIDTH-MASK INVERT AND 0x2116 !
+  \ Don't need to change the source address, it's been incremented to copy from
+  \ the correct place. Also don't need to change the other config registers.
 
   \ Start DMA transfer.
   0x01 0x420B C!
@@ -167,10 +193,10 @@ BANK!
 
 : COPY-SUBCOLUMN ( col rowstart -- )
   OVER SWAP FILL-COLUMN-COPY-BUFFER
-  \ VMADD is a word address. Mask (modulo) the width so we clamp to valid
+  \ VMADDR is a word address. Mask (modulo) the width so we clamp to valid
   \ columns in the vram tilemap. We always write a 32-tile column and start at
   \ row 0.
-  VRAM-TILEMAP-WIDTH-MASK AND COLUMN-COPY-VMADD !
+  VRAM-TILEMAP-WIDTH-MASK AND COLUMN-COPY-VMADDR !
   TRUE COLUMN-COPY-NMI-READY !
 ;
 
@@ -178,10 +204,8 @@ BANK!
 
 \ Does not support wrapping.
 : COPY-SUBROW ( col row -- )
-  \ TODO: This is wrong; The DMA will wrap around to the next row if we exceed
-  \ the 32 tile width of the VRAM tilemap.
   OVER VRAM-TILEMAP-WIDTH-MASK AND
-  OVER VRAM-TILEMAP-HEIGHT-MASK AND 32* + ROW-COPY-VMADD !
+  OVER VRAM-TILEMAP-HEIGHT-MASK AND 32* + ROW-COPY-VMADDR !
   64* + CELLS MAP-TILES + ROW-COPY-SRC-ADDR !
   \ 2DROP MAP-TILES ROW-COPY-SRC-ADDR !
   TRUE ROW-COPY-NMI-READY !
@@ -228,11 +252,6 @@ BANK!
 : 16/ LSR LSR LSR LSR ;
 
 : UPDATE-X-SCROLL
-  \ TODO: Need to mask all of these calculations (because of wrapping) How will
-  \ underflow work? Seems like we might need to use signed math. Actually,
-  \ probably fine, standard comparison ops are already signed and we can just
-  \ assume the player will never move 64 tilemaps away (scroll values are 10
-  \ bits but we store them in a 16-bit word)
   X-SCROLL @ X-BORDER @ < IF
     \ Shift border left by one tile, then draw the next column over.
     TILE-SIZE-PIXELS NEGATE X-BORDER +!
