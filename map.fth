@@ -7,16 +7,22 @@ CBANK@
 2 BANK!
 2 CBANK!
 INCLUDE std.fth
+INCLUDE snes-std.fth
 
 ( width height -- )
 : COMPILE-MAP
   * CELLS
   HERE + >R
   BEGIN
-    0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
-    0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
-    0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
-    0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
+    0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 1 , 0 , 1 , 
+    0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 
+    1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 
+    1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 
+
+    1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 
+    1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 
+    1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 
+    1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 
   HERE R@ >= UNTIL
   R> DROP
 ;
@@ -29,6 +35,10 @@ HERE \ Store HERE so we can create the label for it later.
 MAP-WIDTH MAP-HEIGHT COMPILE-MAP
 CONSTANT MAP-TILES
 
+\ 32 * 32 * 2 = 2048 bytes in 7F to store a VRAM tilemap.
+\ TODO: Actually this can be smaller since we should only need 14 + 4ish rows.
+0x1000 CONSTANT 7F-TILEMAP-SCRATCH
+
 16 CONSTANT TILE-SIZE-PIXELS
 18 CONSTANT COLUMN-COPY-TILES
 20 CONSTANT ROW-COPY-TILES
@@ -40,6 +50,19 @@ VRAM-TILEMAP-HEIGHT CELLS 1- CONSTANT COLUMN-COPY-BUFFER-MASK
 
 64 16 - TILE-SIZE-PIXELS * CONSTANT MAX-X-SCROLL
 64 14 - TILE-SIZE-PIXELS * CONSTANT MAX-Y-SCROLL
+
+\ Bytes from the current BANK to WRAM
+\ TODO: This should probably be ASM.
+: ROM-TO-RAM ( from count to to-7f? )
+  0x2183 C!
+  0x2181 !
+  OVER + SWAP
+  BEGIN
+    DUP C@ 0x2180 C!
+    1+
+  2DUP = UNTIL
+  2DROP
+;
 
 \ ALLOT enough bytes to align to the given stride length.
 \ stride must be a multiple of 2.
@@ -67,11 +90,18 @@ CREATE COLUMN-COPY-NMI-READY 1 CELLS ALLOT
 CREATE ROW-COPY-SRC-ADDR 1 CELLS ALLOT
 CREATE ROW-COPY-VMADDR 1 CELLS ALLOT
 CREATE ROW-COPY-NMI-READY 1 CELLS ALLOT
+CREATE FULL-COPY-NMI-READY 1 CELLS ALLOT
+CREATE FULL-COPY-BYTE-COUNT 1 CELLS ALLOT
 BANK!
 
 : 64*
   2* 2* 2* 2* 2* 2*
 ;
+
+: 32* 2* 2* 2* 2* 2* ;
+
+\ TODO: This doesn't work for negative numbers.
+: 16/ LSR LSR LSR LSR ; LABEL 16_DIV
 
 \ Fill the copy buffer with COLUMN-COPY-TILES (potentially wrapping)
 \ The column must not exceed the height of the tilemap.
@@ -121,6 +151,9 @@ BANK!
   0x01 0x420B C!
 ;
 
+\ When tiling across a wrap, this function determines how many tiles until the
+\ wrap and then how many tiles remain after the wrap.
+\ pre-wrap-count + post-wrap-count = desired-width
 : BREAK-INTO-TWO-ROW-COUNTS
 ( starting-vram-x desired-width -- pre-wrap-count post-wrap-count )
   2DUP + VRAM-TILEMAP-WIDTH < IF
@@ -169,6 +202,79 @@ BANK!
   0x01 0x420B C!
 ;
 
+: COPY-SUBROWS ( rom-addr wram-addr count -- )
+  CELLS FULL-COPY-BYTE-COUNT !
+  \ Grab rom-addr and calculate end addr. Rom is best because it doesn't wrap.
+  OVER
+  [ COLUMN-COPY-TILES 64 CELLS * COMPILE-LIT ] + >R
+  BEGIN ( from to R: until )
+    2DUP FULL-COPY-BYTE-COUNT @ SWAP TRUE ROM-TO-RAM
+    32 CELLS + [ 32 32 * CELLS 1- COMPILE-LIT ] AND 7F-TILEMAP-SCRATCH +
+    SWAP
+    64 CELLS +
+    SWAP
+  OVER R@ >= UNTIL
+  2DROP
+  R> DROP
+;
+
+\ Copies a screenfull of tiles to the scratch buffer in 7F-TILEMAP-SCRATCH.
+: FULL-COPY ( tx ty -- )
+  \ Calculate the starting addr for rom
+  2DUP 64* + CELLS MAP-TILES + -ROT \ rom-addr tx ty 
+  \ Calculate the starting addr for vram (actually our wram scratch)
+  OVER VRAM-TILEMAP-WIDTH-MASK AND
+  SWAP VRAM-TILEMAP-HEIGHT-MASK AND
+  32* + CELLS 7F-TILEMAP-SCRATCH + SWAP \ rom-addr wram-addr tx
+  \ Calculate the counts
+  VRAM-TILEMAP-WIDTH-MASK AND
+  ROW-COPY-TILES BREAK-INTO-TWO-ROW-COUNTS >R \ rom-addr wram-addr pre-count R: post-count
+  >R 2DUP R> \ Save the addresses for the second count, if needed.
+  \ Copy the first count
+  COPY-SUBROWS
+  \ rom-addr wram-addr R: post-count
+  \ Adjust wram address to point at the beginning of the row.
+  32 2* 1- INVERT AND SWAP
+  \ Add the pre-wrap # of tiles to the rom addr.
+  ROW-COPY-TILES R@ - CELLS + SWAP
+  \ Kinda wasteful to wait to check, but bail here if needed.
+  R> DUP 0= IF
+    DROP 2DROP
+  ;THEN
+  \ Copy the second count
+  COPY-SUBROWS
+;
+
+: FULL-COPY-DMA 
+  \ - Increment after writing high byte and
+  \ - increment by 1.
+  0x80 0x2115 C!
+
+  \ Page (compiled to the current page)
+  PHK 0x4304 C!
+  \ Copy to addr (2118), then addr+1 (2119).
+  0x1 0x4300 C!
+  \ Copy to VRAM reg
+  0x18 0x4301 C!
+
+  \ Writing to VM address (word addressed)
+  0 0x2116 !
+
+  \ Number of copies
+  [ 32 32 * CELLS COMPILE-LIT ] 0x4305 !
+  \ Page
+  0x7F 0x4304 C!
+  \ Transfer from
+  7F-TILEMAP-SCRATCH 0x4302 !
+  \ Copy to addr (2118), then addr+1 (2119).
+  0x1 0x4300 C!
+  \ Copy to VRAM reg
+  0x18 0x4301 C!
+
+  \ Start DMA transfer.
+  0x01 0x420B C!
+;
+
 : TILE-DMA ( vram-addr -- )
   \ - Increment after writing high byte and
   \ - increment by 1.
@@ -200,8 +306,6 @@ BANK!
   TRUE COLUMN-COPY-NMI-READY !
 ;
 
-: 32* 2* 2* 2* 2* 2* ;
-
 \ Does not support wrapping.
 : COPY-SUBROW ( col row -- )
   OVER VRAM-TILEMAP-WIDTH-MASK AND
@@ -222,14 +326,31 @@ BANK!
 
 2 TILE-SIZE-PIXELS * CONSTANT BORDER-MARGIN
 
+: FULL-REDRAW
+  FULL-COPY-NMI-READY @ 0= IF
+    BREAKPOINT
+    X-BORDER @ TILE-SIZE-PIXELS - 0 MAX 16/
+    Y-BORDER @ TILE-SIZE-PIXELS - 0 MAX 16/
+    FULL-COPY
+    TRUE FULL-COPY-NMI-READY !
+  THEN
+;
+
 : MAP-INIT
+  BANK@ PHK BANK!
+
   FALSE COLUMN-COPY-NMI-READY !
   FALSE ROW-COPY-NMI-READY !
-  16 X-SCROLL !
-  16 Y-SCROLL !
+  FALSE FULL-COPY-NMI-READY !
+  0 X-SCROLL !
+  0 Y-SCROLL !
   \ Start with a centered border.
   X-SCROLL @ BORDER-MARGIN LSR - X-BORDER !
   Y-SCROLL @ BORDER-MARGIN LSR - Y-BORDER !
+
+  FULL-REDRAW
+
+  BANK!
 ;
 
 : HANDLE-JOY
@@ -248,8 +369,6 @@ BANK!
     THEN
   DROP
 ;
-
-: 16/ LSR LSR LSR LSR ;
 
 : UPDATE-X-SCROLL
   X-SCROLL @ X-BORDER @ < IF
@@ -289,9 +408,13 @@ BANK!
 ;
 
 : MAP-MAIN
+  BANK@ PHK BANK!
+
   HANDLE-JOY
 
   UPDATE-SCROLL
+
+  BANK!
 ;
 
 : SET-BG1-X-SCROLL ( 10-bit-val -- )
@@ -313,7 +436,7 @@ BANK!
   0x01 BANK0-CALL BG1-TILE-BASE!
   \ Tilemap at address 0, 1x1 tilemap.
   0 0x2107 C!
-  0x11   0x11   BANK0-CALL BG-MODE           MASK!
+  0x11 0x11 BANK0-CALL BG-MODE MASK!
 
   \ Zero X shift for BG1
   0x00 0x210D C!
@@ -324,6 +447,10 @@ BANK!
 
   0x1000 TILE-DMA
 
+  FULL-COPY-NMI-READY @ IF
+    FULL-COPY-DMA
+    FALSE FULL-COPY-NMI-READY !
+  THEN
   COLUMN-COPY-NMI-READY @ IF
     COLUMN-COPY-DMA
     FALSE COLUMN-COPY-NMI-READY !
