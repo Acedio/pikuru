@@ -374,13 +374,18 @@ BANK!
   X-SCROLL @ X-BORDER @ < IF
     \ Shift border left by one tile, then draw the next column over.
     TILE-SIZE-PIXELS NEGATE X-BORDER +!
-    X-BORDER @ 16/ 1- 63 AND Y-BORDER @ 16/ 1- 63 AND COPY-SUBCOLUMN
+    X-BORDER @ TILE-SIZE-PIXELS - 0 MAX 16/
+    Y-BORDER @ TILE-SIZE-PIXELS - 0 MAX 16/
+    COPY-SUBCOLUMN
   ;THEN
   X-SCROLL @ X-BORDER @ BORDER-MARGIN + >= IF
     \ Shift border right by one tile and draw the next right column.
     TILE-SIZE-PIXELS X-BORDER +!
-    \ TODO: 18 should probably be calculated somehow?
-    X-BORDER @ 16/ 18 + 63 AND Y-BORDER @ 16/ 1- 63 AND COPY-SUBCOLUMN
+    \ TODO: I feel like I should mathematically show why this is the right
+    \ placement of the tile column, but whatever it works.
+    X-BORDER @ TILE-SIZE-PIXELS - 0 MAX 16/ ROW-COPY-TILES 1- + 63 AND
+    Y-BORDER @ TILE-SIZE-PIXELS - 0 MAX 16/
+    COPY-SUBCOLUMN
   ;THEN
 ;
 
@@ -388,13 +393,18 @@ BANK!
   Y-SCROLL @ Y-BORDER @ < IF
     \ Shift border up by one tile, then draw the next row above.
     TILE-SIZE-PIXELS NEGATE Y-BORDER +!
-    X-BORDER @ 16/ 1- 63 AND Y-BORDER @ 16/ 1- 63 AND COPY-SUBROW
+    X-BORDER @ TILE-SIZE-PIXELS - 0 MAX 16/
+    Y-BORDER @ TILE-SIZE-PIXELS - 0 MAX 16/
+    COPY-SUBROW
   ;THEN
   Y-SCROLL @ Y-BORDER @ BORDER-MARGIN + >= IF
     \ Shift border down by one tile and draw the next column below.
     TILE-SIZE-PIXELS Y-BORDER +!
-    \ TODO: 16 Should be calculated as well.
-    X-BORDER @ 16/ 1- 63 AND Y-BORDER @ 16/ 16 + 63 AND COPY-SUBROW
+    X-BORDER @ TILE-SIZE-PIXELS - 0 MAX 16/
+    \ TODO: I feel like I should mathematically show why this is the right
+    \ placement of the tile row but whatever it works.
+    Y-BORDER @ TILE-SIZE-PIXELS - 0 MAX 16/ COLUMN-COPY-TILES 1- + 63 AND
+    COPY-SUBROW
   ;THEN
 ;
 
