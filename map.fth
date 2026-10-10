@@ -9,6 +9,8 @@ CBANK@
 INCLUDE std.fth
 INCLUDE snes-std.fth
 
+INCLUDE build/test.map.fth
+
 ( width height -- )
 : COMPILE-MAP
   * CELLS
@@ -111,7 +113,7 @@ BANK!
 
   TUCK \ Save the starting row to determine where to start in COLUMN-COPY-BUFFER
   64* + CELLS \ Byte offset into the map
-  MAP-TILES + \ Starting address
+  TEST-MAP + \ Starting address
   DUP COLUMN-COPY-TILES 64* CELLS + >R \ Final address
 
   SWAP CELLS COLUMN-COPY-BUFFER + \ Copy target based on the starting row.
@@ -221,7 +223,7 @@ BANK!
 \ Copies a screenfull of tiles to the scratch buffer in 7F-TILEMAP-SCRATCH.
 : FULL-COPY ( tx ty -- )
   \ Calculate the starting addr for rom
-  2DUP 64* + CELLS MAP-TILES + -ROT \ rom-addr tx ty 
+  2DUP 64* + CELLS TEST-MAP + -ROT \ rom-addr tx ty 
   \ Calculate the starting addr for vram (actually our wram scratch)
   OVER VRAM-TILEMAP-WIDTH-MASK AND
   SWAP VRAM-TILEMAP-HEIGHT-MASK AND
@@ -283,13 +285,14 @@ BANK!
   0x2116 !
 
   \ Number of copies
-  32 0x4305 !
+  \ TODO
+  1024 0x4305 !
   \ Page (compiled to the current page)
   PHK 0x4304 C!
   \ Transfer from
-  MAP-TILES 0x4302 !
+  TEST-TILES 0x4302 !
   \ Copy to addr (2118), then addr+1 (2119). No increment.
-  0x09 0x4300 C!
+  0x01 0x4300 C!
   \ Copy to VRAM reg
   0x18 0x4301 C!
 
@@ -310,7 +313,7 @@ BANK!
 : COPY-SUBROW ( col row -- )
   OVER VRAM-TILEMAP-WIDTH-MASK AND
   OVER VRAM-TILEMAP-HEIGHT-MASK AND 32* + ROW-COPY-VMADDR !
-  64* + CELLS MAP-TILES + ROW-COPY-SRC-ADDR !
+  64* + CELLS TEST-MAP + ROW-COPY-SRC-ADDR !
   \ 2DROP MAP-TILES ROW-COPY-SRC-ADDR !
   TRUE ROW-COPY-NMI-READY !
 ;

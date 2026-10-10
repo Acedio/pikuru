@@ -2,6 +2,8 @@
 
 local v2 = require("v2")
 
+local name_prefix = arg[1]
+
 local Grid = {}
 
 -- 0-based
@@ -118,13 +120,102 @@ function tilify(grid, tile_size)
         index = #tiles
         tile_hashes[hash] = index
       end
-      tilemap:set(x//tile_size, y//tile_size, index)
+      -- `tiles` is 1-indexed, but the tilemap is 0-indexed.
+      tilemap:set(x//tile_size, y//tile_size, index-1)
     end
   end
   return {
     tiles = tiles,
     tilemap = tilemap,
   }
+end
+
+function sixteen_to_eight(tiles, tilemap)
+  -- 16x16 tiles on the SNES are identified by the top left 8x8 tile. The
+  -- remaining tiles are x+1, x+16, and x+17.
+
+  -- First, pad our tiles so the count is divisible by 16, which makes our loop
+  -- easier below.
+  if #tiles % 16 ~= 0 then
+    local to_add = 16 - (#tiles % 16)
+    for i=1,to_add do
+      local blank_tile = Grid:newWithDimensions(16,16)
+      blank_tile:fill(0)
+      table.insert(tiles, blank_tile)
+    end
+  end
+
+  local eight_tiles = {}
+  for y=0,#tiles // 8 - 1 do
+    for x=0,7 do  -- each row is 8 16x16 tiles wide
+      -- Tiles is a 1-indexed array.
+      local tile_i = y * 8 + x + 1
+      table.insert(eight_tiles, tiles[tile_i]:subgrid(0,0,8,8))
+      table.insert(eight_tiles, tiles[tile_i]:subgrid(8,0,8,8))
+    end
+    for x=0,7 do  -- each row is 8 16x16 tiles wide
+      -- Tiles is a 1-indexed array.
+      local tile_i = y * 8 + x + 1
+      table.insert(eight_tiles, tiles[tile_i]:subgrid(0,8,8,8))
+      table.insert(eight_tiles, tiles[tile_i]:subgrid(8,8,8,8))
+    end
+  end
+
+  -- The tilemap is still the same resolution, but we need to adjust the tile
+  -- indices to map to the newly rearranged eight_tiles.
+  local eight_tilemap = Grid:newWithDimensions(tilemap.width, tilemap.height)
+  for y=0,tilemap.height-1 do
+    for x=0,tilemap.width-1 do
+      local index = tilemap:get(x,y)
+      local x_part = index & 7
+      local y_part = index >> 3
+      local eight_index = x_part * 2 + ((y_part * 2) << 4)
+      eight_tilemap:set(x,y,eight_index)
+    end
+  end
+  return {
+    tiles = eight_tiles,
+    tilemap = eight_tilemap,
+  }
+end
+
+function row_as_byte(tile, row, mask)
+  local byte = 0
+  for x=0,7 do
+    byte = byte << 1
+    if tile:get(x, row) & mask ~= 0 then
+      byte = byte | 1
+    end
+  end
+  return byte
+end
+
+function write_tiles(tiles, file)
+  for i=1,#tiles do
+    assert(tiles[i].width == 8)
+    assert(tiles[i].height == 8)
+    -- Planes 0 and 1 (1 is empty).
+    for y=0,7 do
+      local plane_0_byte = row_as_byte(tiles[i], y, 1)
+      file:write(string.char(plane_0_byte, 0))
+    end
+    -- Planes 2 and 3 are empty.
+    for y=0,7 do
+      file:write(string.char(0, 0))
+    end
+  end
+end
+
+function write_tilemap16(tilemap, file)
+  for y=0,tilemap.height-1 do
+    for x=0,tilemap.width-1 do
+      file:write(string.char(tilemap:get(x,y), 0))
+    end
+  end
+end
+
+function write_palette(file)
+  file:write(string.char(0,0,0xFF,0x7F))
 end
 
 -- For when W > H.
@@ -205,41 +296,93 @@ function iso_point(x, y, z)
   return v2.v2(x * 16 + y * 16, y * 8 - x * 8 - z * 8)
 end
 
-local width_tiles = 8
-local height_tiles = 8
+-- Draws the given heightmap on an isometric grid.
+function draw_iso_heightmap(grid)
+  local image_width = grid.width * 16 + grid.height * 16
+  local image_height = grid.width * 8 + grid.height * 8 + 16
+  local origin = v2.v2(0,image_height/2-1)
+  local img = Grid:newWithDimensions(image_width, image_height)
+  img:fill(0)
+  for y=0,grid.height-1 do
+    for x=0,grid.width-1 do
+      if x+1 <= grid.width - 1 then
+        draw_line(img, 255, origin + iso_point(x, y, grid:get(x,y)), origin + iso_point(x+1, y, grid:get(x+1,y)))
+      end
+      if y+1 <= grid.height - 1 then
+        draw_line(img, 255, origin + iso_point(x, y, grid:get(x,y)), origin + iso_point(x, y+1, grid:get(x,y+1)))
+      end
+    end
+  end
+
+  return img
+end
+
 -- z values of each coordinate. The number of "tiles" is actually one less than
 -- the width and height here.
 local grid = Grid:new{
-  width = 8,
-  height = 8,
+  width = 32,
+  height = 32,
   array = {
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 1, 1, 1, 1, 1, 1, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 1, 1, 1, 1, 1, 1, 0,
-    0, 1, 1, 2, 2, 1, 1, 0,
-    0, 1, 1, 2, 2, 1, 1, 0,
-    0, 1, 1, 1, 1, 1, 1, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 1, 1, 2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 1, 1, 2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   },
 }
-local tile_size = 16
-local image_width = width_tiles * 16 + height_tiles * 16
-local image_height = width_tiles * 8 + height_tiles * 8 + 16
-local origin = v2.v2(0,image_height/2-1)
-local img = Grid:newWithDimensions(image_width, image_height)
-img:fill(0)
-for y=0,height_tiles-1 do
-  for x=0,width_tiles-1 do
-    if x+1 <= width_tiles - 1 then
-      draw_line(img, 255, origin + iso_point(x, y, grid:get(x,y)), origin + iso_point(x+1, y, grid:get(x+1,y)))
-    end
-    if y+1 <= height_tiles - 1 then
-      draw_line(img, 255, origin + iso_point(x, y, grid:get(x,y)), origin + iso_point(x, y+1, grid:get(x,y+1)))
-    end
-  end
-end
--- write_pgm(img, 255, io.stdout)
+local img = draw_iso_heightmap(grid)
+
+local pgm_file = io.open(name_prefix .. ".pgm", "w")
+assert(pgm_file)
+write_pgm(img, 255, pgm_file)
+pgm_file:close()
 
 local result = tilify(img, 16)
-write_pgm(Grid.cat(result.tiles), 255, io.stdout)
+local sixteen_result = sixteen_to_eight(result.tiles, result.tilemap)
+
+local tiles_pgm = io.open(name_prefix .. ".tiles.pgm", "w")
+assert(tiles_pgm)
+write_pgm(Grid.cat(sixteen_result.tiles), 255, tiles_pgm)
+tiles_pgm:close()
+
+local tilemap_file = io.open(name_prefix .. ".map.map.out", "wb")
+assert(tilemap_file)
+write_tilemap16(sixteen_result.tilemap, tilemap_file)
+tilemap_file:close()
+
+local tiles_file = io.open(name_prefix .. ".map.tiles.out", "wb")
+assert(tiles_file)
+write_tiles(sixteen_result.tiles, tiles_file)
+tiles_file:close()
+
+local pal_file = io.open(name_prefix .. ".map.pal.out", "wb")
+assert(pal_file)
+write_palette(pal_file)
+pal_file:close()

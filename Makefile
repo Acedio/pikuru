@@ -35,14 +35,16 @@ $(BUILD)/%.out.s: %.fth | build
 $(BUILD)/%.out.s: tests/%.fth tests/test-util.fth tests/snes-test-util.fth cgram.fth oam.fth vram.fth | build 
 	$(SNESFORTH) $< $@
 
+ISOMAPS=test
+ISOMAPS_FTH=$(foreach name,$(ISOMAPS),$(BUILD)/$(name).map.fth)
 4BTILES=maptiles sprites stars title
-4BTILES_FTH=$(foreach name,$(4BTILES),$(BUILD)/$(name).tiles.fth)
+4BTILES_FTH=$(foreach name,$(4BTILES),$(BUILD)/$(name).map.fth)
 2BTILES=farstars
-2BTILES_FTH=$(foreach name,$(2BTILES),$(BUILD)/$(name).tiles2b.fth)
+2BTILES_FTH=$(foreach name,$(2BTILES),$(BUILD)/$(name).map2b.fth)
 MAPS=starfield.p2 farstars.p1 title.p1
 MAPS_FTH=$(foreach name,$(MAPS),$(BUILD)/$(name).map.fth)
 
-$(BUILD)/game.out.s: joypad.fth sin-lut.fth oam.fth vram.fth cgram.fth wram.fth $(4BTILES_FTH) $(2BTILES_FTH) $(MAPS_FTH) font.fth audio.fth stars.fth steps.fth level-data.fth levels.fth level.fth title.fth end.fth map.fth
+$(BUILD)/game.out.s: joypad.fth sin-lut.fth oam.fth vram.fth cgram.fth wram.fth $(ISOMAPS_FTH) $(4BTILES_FTH) $(2BTILES_FTH) $(MAPS_FTH) font.fth audio.fth stars.fth steps.fth level-data.fth levels.fth level.fth title.fth end.fth map.fth
 
 # TODO: Currently unused, the game itself doesn't have any tests.
 tests: $(BUILD)/tests.smc $(BUILD)/tests.mlb
@@ -64,17 +66,20 @@ JUSTCOPY=tad-audio.inc forth/preamble.inc
 $(foreach file,$(JUSTCOPY),$(BUILD)/$(file)): $(JUSTCOPY)
 	cp $(JUSTCOPY) $(BUILD)
 
-$(BUILD)/%.tiles.pal.out $(BUILD)/%.tiles.tiles.out: $(ASSETS)/%.png | build
-	superfamiconv -i $^ -p $(BUILD)/$*.tiles.pal.out -t $(BUILD)/$*.tiles.tiles.out -S
+$(BUILD)/test.map.pal.out $(BUILD)/test.map.tiles.out $(BUILD)/test.map.map.out: tiler.lua | build
+	./tiler.lua $(BUILD)/test
 
-$(BUILD)/%.tiles.fth: $(BUILD)/%.tiles.pal.out $(BUILD)/%.tiles.tiles.out | build
-	./tiles-to-forth.lua $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $^ BANK2 > $@
+$(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out: $(ASSETS)/%.png | build
+	superfamiconv -i $^ -p $(BUILD)/$*.map.pal.out -t $(BUILD)/$*.map.tiles.out -m $(BUILD)/$*.map.map.out -B 4 -W 16 -H 16
 
-$(BUILD)/%.tiles2b.pal.out $(BUILD)/%.tiles2b.tiles.out: $(ASSETS)/%.png | build
-	superfamiconv -i $^ -p $(BUILD)/$*.tiles2b.pal.out -t $(BUILD)/$*.tiles2b.tiles.out -S -B 2
+$(BUILD)/%.map.fth: $(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out | build
+	./map-to-forth.lua $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $^ BANK2 > $@
 
-$(BUILD)/%.tiles2b.fth: $(BUILD)/%.tiles2b.pal.out $(BUILD)/%.tiles2b.tiles.out | build
-	./tiles-to-forth.lua $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $^ BANK1 > $@
+$(BUILD)/%.map2b.pal.out $(BUILD)/%.map2b.tiles.out $(BUILD)/%.map2b.map.out: $(ASSETS)/%.png | build
+	superfamiconv -i $^ -p $(BUILD)/$*.map2b.pal.out -t $(BUILD)/$*.map2b.tiles.out -m $(BUILD)/$*.map2b.map.out -S -B 2
+
+$(BUILD)/%.map2b.fth: $(BUILD)/%.map2b.pal.out $(BUILD)/%.map2b.tiles.out $(BUILD)/%.map2b.map.out | build
+	./map-to-forth.lua $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $^ BANK1 > $@
 
 $(BUILD)/%.map.csv: $(ASSETS)/%.tmx | build
 	xvfb-run -a tiled --export-map csv $< $@
@@ -91,5 +96,5 @@ $(BUILD)/%.p2.map.fth: $(BUILD)/%.map.csv | build
 	./csv-to-tilemap.sh $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $< 2048 BANK1 > $@
 
 clean:
-	$(RM) *.smc *.labels *.dbg *.o *.mlb *.out.s *.out.fth dataspace.dump *.pal.out *.tiles.out *.tiles.fth *.tiles2b.fth *.sprites.fth audio.inc audio.bin audio.s *.map.csv *.map.fth
+	$(RM) *.smc *.labels *.dbg *.o *.mlb *.out.s *.out.fth dataspace.dump *.pal.out *.tiles.out *.map.out *.map.fth *.map2b.fth *.sprites.fth audio.inc audio.bin audio.s *.map.csv *.map.fth
 	$(RM) -r $(BUILD)
