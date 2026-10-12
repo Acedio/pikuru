@@ -1,5 +1,6 @@
 BUILD=build
 ASSETS=assets
+SPRITES=assets/sprites
 SNESFORTH=LUA_PATH=forth/?.lua forth/snes-forth.lua -i forth/include
 
 all: $(BUILD)/game.smc $(BUILD)/game.mlb
@@ -37,10 +38,10 @@ $(BUILD)/%.out.s: tests/%.fth tests/test-util.fth tests/snes-test-util.fth cgram
 
 ISOMAPS=test
 ISOMAPS_FTH=$(foreach name,$(ISOMAPS),$(BUILD)/$(name).map.fth)
-4BTILES=maptiles sprites stars title
-4BTILES_FTH=$(foreach name,$(4BTILES),$(BUILD)/$(name).map.fth)
+4BTILES=maptiles sprites stars title pickles
+4BTILES_FTH=$(foreach name,$(4BTILES),$(BUILD)/$(name).spr.fth)
 2BTILES=farstars
-2BTILES_FTH=$(foreach name,$(2BTILES),$(BUILD)/$(name).map2b.fth)
+2BTILES_FTH=$(foreach name,$(2BTILES),$(BUILD)/$(name).spr2b.fth)
 MAPS=starfield.p2 farstars.p1 title.p1
 MAPS_FTH=$(foreach name,$(MAPS),$(BUILD)/$(name).map.fth)
 
@@ -69,17 +70,20 @@ $(foreach file,$(JUSTCOPY),$(BUILD)/$(file)): $(JUSTCOPY)
 $(BUILD)/test.map.pal.out $(BUILD)/test.map.tiles.out $(BUILD)/test.map.map.out: tiler.lua | build
 	./tiler.lua $(BUILD)/test
 
-$(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out: $(ASSETS)/%.png | build
-	superfamiconv -i $^ -p $(BUILD)/$*.map.pal.out -t $(BUILD)/$*.map.tiles.out -m $(BUILD)/$*.map.map.out -B 4 -W 16 -H 16
-
 $(BUILD)/%.map.fth: $(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out | build
-	./map-to-forth.lua $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $^ BANK2 > $@
+	./map-to-forth.lua $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $^ BANK2_UNSIZED > $@
 
-$(BUILD)/%.map2b.pal.out $(BUILD)/%.map2b.tiles.out $(BUILD)/%.map2b.map.out: $(ASSETS)/%.png | build
-	superfamiconv -i $^ -p $(BUILD)/$*.map2b.pal.out -t $(BUILD)/$*.map2b.tiles.out -m $(BUILD)/$*.map2b.map.out -S -B 2
+$(BUILD)/%.spr.pal.out $(BUILD)/%.spr.tiles.out: $(SPRITES)/%.png | build
+	superfamiconv -i $^ -p $(BUILD)/$*.spr.pal.out -t $(BUILD)/$*.spr.tiles.out -S -B 4
 
-$(BUILD)/%.map2b.fth: $(BUILD)/%.map2b.pal.out $(BUILD)/%.map2b.tiles.out $(BUILD)/%.map2b.map.out | build
-	./map-to-forth.lua $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $^ BANK1 > $@
+$(BUILD)/%.spr.fth: $(BUILD)/%.spr.pal.out $(BUILD)/%.spr.tiles.out | build
+	./map-to-forth.lua $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $^ /dev/null BANK2_UNSIZED > $@
+
+$(BUILD)/%.spr2b.pal.out $(BUILD)/%.spr2b.tiles.out: $(SPRITES)/%.png | build
+	superfamiconv -i $^ -p $(BUILD)/$*.spr2b.pal.out -t $(BUILD)/$*.spr2b.tiles.out -S -B 2
+
+$(BUILD)/%.spr2b.fth: $(BUILD)/%.spr2b.pal.out $(BUILD)/%.spr2b.tiles.out | build
+	./map-to-forth.lua $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $^ /dev/null BANK1_UNSIZED > $@
 
 $(BUILD)/%.map.csv: $(ASSETS)/%.tmx | build
 	xvfb-run -a tiled --export-map csv $< $@
@@ -87,14 +91,14 @@ $(BUILD)/%.map.csv: $(ASSETS)/%.tmx | build
 # These have .pX in their filename to indicate which palette they use.
 # TODO: This kind of configuration shouldn't be in the makefile :P
 $(BUILD)/%.p0.map.fth: $(BUILD)/%.map.csv | build
-	./csv-to-tilemap.sh $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $< 0 BANK1 > $@
+	./csv-to-tilemap.sh $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $< 0 BANK1_UNSIZED > $@
 
 $(BUILD)/%.p1.map.fth: $(BUILD)/%.map.csv | build
-	./csv-to-tilemap.sh $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $< 1024 BANK1 > $@
+	./csv-to-tilemap.sh $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $< 1024 BANK1_UNSIZED > $@
 
 $(BUILD)/%.p2.map.fth: $(BUILD)/%.map.csv | build
-	./csv-to-tilemap.sh $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $< 2048 BANK1 > $@
+	./csv-to-tilemap.sh $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $< 2048 BANK1_UNSIZED > $@
 
 clean:
-	$(RM) *.smc *.labels *.dbg *.o *.mlb *.out.s *.out.fth dataspace.dump *.pal.out *.tiles.out *.map.out *.map.fth *.map2b.fth *.sprites.fth audio.inc audio.bin audio.s *.map.csv *.map.fth
+	$(RM) dataspace.dump link.mapfile
 	$(RM) -r $(BUILD)

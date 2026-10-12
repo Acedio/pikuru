@@ -57,4 +57,7 @@ end
 
 print(makeDataWords(name .. "-PAL", name .. "_PAL", palFile:read("*all")))
 print(makeDataWords(name .. "-TILES", name .. "_TILES", tileFile:read("*all")))
-print(makeDataWords(name .. "-MAP", name .. "_MAP", mapFile:read("*all")))
+local map_bytes = mapFile:read("*all")
+if #map_bytes > 0 then
+  print(makeDataWords(name .. "-MAP", name .. "_MAP", map_bytes))
+end
