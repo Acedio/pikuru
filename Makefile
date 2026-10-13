@@ -45,7 +45,7 @@ ISOMAPS_FTH=$(foreach name,$(ISOMAPS),$(BUILD)/$(name).map.fth)
 MAPS=starfield.p2 farstars.p1 title.p1
 MAPS_FTH=$(foreach name,$(MAPS),$(BUILD)/$(name).map.fth)
 
-$(BUILD)/game.out.s: joypad.fth sin-lut.fth oam.fth vram.fth cgram.fth wram.fth $(ISOMAPS_FTH) $(4BTILES_FTH) $(2BTILES_FTH) $(MAPS_FTH) font.fth audio.fth stars.fth steps.fth level-data.fth levels.fth level.fth title.fth end.fth map.fth
+$(BUILD)/game.out.s: joypad.fth sin-lut.fth oam.fth vram.fth cgram.fth wram.fth $(ISOMAPS_FTH) $(4BTILES_FTH) $(2BTILES_FTH) $(MAPS_FTH) font.fth audio.fth stars.fth steps.fth level-data.fth levels.fth level.fth stage.fth title.fth end.fth map.fth
 
 # TODO: Currently unused, the game itself doesn't have any tests.
 tests: $(BUILD)/tests.smc $(BUILD)/tests.mlb

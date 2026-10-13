@@ -452,10 +452,10 @@ BANK!
 ;
 
 : MAP-NMI
-  \ Enable BG1, disable OBJ. In lowram, so fine to write.
+  \ Enable BG1. In lowram, so fine to write from separate bank.
   \ TODO: Maybe creating a vram-lowram.fth file that we can include in other
   \ banks to allow for writing the lowram CREATE vars?
-  0x01 0x11 BANK0-CALL BG-LAYER-ENABLE MASK!
+  0x01 0x01 BANK0-CALL BG-LAYER-ENABLE MASK!
 
   0x01 BANK0-CALL BG1-TILE-BASE!
   \ Tilemap at address 0, 1x1 tilemap.

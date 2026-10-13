@@ -7,7 +7,7 @@ REQUIRE audio.fth
 REQUIRE joypad.fth
 REQUIRE oam.fth
 REQUIRE vram.fth
-REQUIRE map.fth
+REQUIRE stage.fth
 
 
 BANK@
@@ -43,7 +43,7 @@ BANK!
       1 NMI-STATE +!
     ENDOF
     1 OF
-      BANK2-CALL MAP-NMI
+      STAGE-NMI
     ENDOF
   ENDCASE
 
@@ -67,7 +67,7 @@ BANK!
 
   ZERO-OAM
 
-  BANK2-CALL MAP-INIT
+  STAGE-INIT
 
   AUDIO-PLAY-SONG
 
@@ -77,7 +77,7 @@ BANK!
 
     READ-JOY1
 
-    BANK2-CALL MAP-MAIN
+    STAGE-MAIN
 
     AUDIO-UPDATE
 
