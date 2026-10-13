@@ -1,10 +1,8 @@
 #!/usr/bin/lua
 
 local name = arg[1]
-local palFile = assert(io.open(arg[2], "rb"))
-local tileFile = assert(io.open(arg[3], "rb"))
-local mapFile = assert(io.open(arg[4], "rb"))
-local segment = arg[5] or "UNSIZED"
+local file = assert(io.open(arg[2], "rb"))
+local segment = arg[3] or "UNSIZED"
 
 function toWords(str)
   local wordStrings = {}
@@ -52,12 +50,8 @@ CODE %s-BANK
   PUSH_A
   rts
 END-CODE
+
   ]], name, label, segment, label, toWordRows(data), #data, name, name, label)
 end
 
-print(makeDataWords(name .. "-PAL", name .. "_PAL", palFile:read("*all")))
-print(makeDataWords(name .. "-TILES", name .. "_TILES", tileFile:read("*all")))
-local map_bytes = mapFile:read("*all")
-if #map_bytes > 0 then
-  print(makeDataWords(name .. "-MAP", name .. "_MAP", map_bytes))
-end
+print(makeDataWords(name, string.gsub(name, "-", "_"), file:read("*all")))

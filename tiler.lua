@@ -218,6 +218,14 @@ function write_palette(file)
   file:write(string.char(0,0,0xFF,0x7F))
 end
 
+function write_heightmap(grid, file)
+  for y=0,grid.height-1 do
+    for x=0,grid.width-1 do
+      file:write(string.char(grid:get(x,y)))
+    end
+  end
+end
+
 -- For when W > H.
 function draw_line_shallow(grid, value, p1, p2)
   local dx = p2.x - p1.x
@@ -386,3 +394,8 @@ local pal_file = io.open(name_prefix .. ".map.pal.out", "wb")
 assert(pal_file)
 write_palette(pal_file)
 pal_file:close()
+
+local heightmap_file = io.open(name_prefix .. ".map.heightmap.out", "wb")
+assert(heightmap_file)
+write_heightmap(grid, heightmap_file)
+heightmap_file:close()
