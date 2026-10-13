@@ -12,7 +12,52 @@ BANK@
 LOWRAM BANK!
 CREATE STAGE-STATE 1 CELLS ALLOT
 CREATE STAGE-NMI-STATE 1 CELLS ALLOT
+\ 8.8 fixed point
+CREATE PLAYER-ISO-X 1 CELLS ALLOT
+CREATE PLAYER-ISO-Y 1 CELLS ALLOT
+CREATE CAMERA-OFFSET-X 1 CELLS ALLOT
+CREATE CAMERA-OFFSET-Y 1 CELLS ALLOT
 BANK!
+
+\ Where iso 0,0 is in screen space
+0      CONSTANT ISO-ORIGIN-SCREEN-X
+32 8 * 8 + CONSTANT ISO-ORIGIN-SCREEN-Y
+
+\ TODO: These are pulled from map.fth.
+16 CONSTANT TILE-SIZE-PIXELS
+64 16 - TILE-SIZE-PIXELS * CONSTANT MAX-X-SCROLL
+64 14 - TILE-SIZE-PIXELS * CONSTANT MAX-Y-SCROLL
+
+64 0x100 * CONSTANT MAX-ISO-X
+64 0x100 * CONSTANT MAX-ISO-Y
+
+: 16/ 2/ 2/ 2/ 2/ ; LABEL DIV16
+
+\ sx = ox+c(x+y)    sy = oy+0.5*c(y-x)
+\ Need to multiply 8.8 fixed by 16 and then truncate to an unsigned word, so
+\ divide by 16.
+: ISO-TO-SCREEN-X ( iso-x iso-y -- screen-x )
+  + 16/ ISO-ORIGIN-SCREEN-X +
+;
+
+\ Need to multiply 8.8 fixed by 8 and then truncate to an unsigned word, so
+\ divide by 32.
+: ISO-TO-SCREEN-Y ( iso-x iso-y -- screen-y )
+  SWAP - 16/ 2/ ISO-ORIGIN-SCREEN-Y +
+;
+
+\ TODO: z?
+\ iso-x and iso-y are in 8.8 fixed point.
+: ISO-TO-SCREEN ( iso-x iso-y -- screen-x screen-y )
+  2DUP ISO-TO-SCREEN-X -ROT
+  ISO-TO-SCREEN-Y
+;
+
+: COORD-SUB ( ax ay bx by -- ax-bx ay-by )
+  ROT SWAP -
+  -ROT -
+  SWAP
+;
 
 : COPY-SPRITES
   \ The bottom two 8x8 tiles of a 16x16 tile are 16 8x8 tiles ahead (1 row
@@ -36,8 +81,31 @@ BANK!
 
 ( -- )
 : DRAW-PLAYER
-  21 21 PLAYER-OAM-OBJECT OAM-OBJECT-COORDS!
+  BREAKPOINT
+  PLAYER-ISO-X @ PLAYER-ISO-Y @ ISO-TO-SCREEN
+  CAMERA-OFFSET-X @ CAMERA-OFFSET-Y @ COORD-SUB
+  SWAP 8 - SWAP 16 -
+  \ For some reason OAM-OBJECT-COORDS! takes y before x.
+  SWAP
+  PLAYER-OAM-OBJECT OAM-OBJECT-COORDS!
   TRUE PLAYER-OAM-OBJECT OAM-OBJECT-LARGE!
+;
+
+: HANDLE-JOY
+  JOY1-HELD @
+    DUP BUTTON-LEFT AND PLAYER-ISO-X @ 0 > AND IF
+      -4 PLAYER-ISO-X +!
+    THEN
+    DUP BUTTON-RIGHT AND PLAYER-ISO-X @ MAX-ISO-X < AND IF
+      4 PLAYER-ISO-X +!
+    THEN
+    DUP BUTTON-UP AND PLAYER-ISO-Y @ 0 > AND IF
+      -4 PLAYER-ISO-Y +!
+    THEN
+    DUP BUTTON-DOWN AND PLAYER-ISO-Y @ MAX-ISO-Y < AND IF
+      4 PLAYER-ISO-Y +!
+    THEN
+  DROP
 ;
 
 : STAGE-NMI
@@ -64,10 +132,16 @@ BANK!
 : STAGE-INIT
   BANK2-CALL MAP-INIT
   0 STAGE-NMI-STATE !
+  0x0000 PLAYER-ISO-X !
+  0x0000 PLAYER-ISO-Y !
+  0 CAMERA-OFFSET-X !
+  128 CAMERA-OFFSET-Y !
 ;
 
 : STAGE-MAIN
-  BANK2-CALL MAP-MAIN
+  HANDLE-JOY
+
+  CAMERA-OFFSET-X @ CAMERA-OFFSET-Y @ BANK2-CALL MAP-MAIN
 
   DRAW-PLAYER
 ;
