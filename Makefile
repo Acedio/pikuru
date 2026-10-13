@@ -67,23 +67,31 @@ JUSTCOPY=tad-audio.inc forth/preamble.inc
 $(foreach file,$(JUSTCOPY),$(BUILD)/$(file)): $(JUSTCOPY)
 	cp $(JUSTCOPY) $(BUILD)
 
-$(BUILD)/test.map.pal.out $(BUILD)/test.map.tiles.out $(BUILD)/test.map.map.out: tiler.lua | build
+$(BUILD)/test.map.pal.out $(BUILD)/test.map.tiles.out $(BUILD)/test.map.map.out $(BUILD)/test.map.heightmap.out: tiler.lua | build
 	./tiler.lua $(BUILD)/test
 
-$(BUILD)/%.map.fth: $(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out | build
-	./map-to-forth.lua $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $^ BANK2_UNSIZED > $@
+$(BUILD)/%.map.fth: $(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out $(BUILD)/%.map.heightmap.out | build
+	NAME=$(shell echo '$*' | tr '[:lower:]' '[:upper:]'); \
+	./bin-to-forth.lua "$$NAME-MAP" $(BUILD)/$*.map.map.out BANK2_UNSIZED > $@; \
+	./bin-to-forth.lua "$$NAME-TILES" $(BUILD)/$*.map.tiles.out BANK2_UNSIZED >> $@; \
+	./bin-to-forth.lua "$$NAME-PAL" $(BUILD)/$*.map.pal.out BANK2_UNSIZED >> $@; \
+	./bin-to-forth.lua "$$NAME-HEIGHTMAP" $(BUILD)/$*.map.heightmap.out BANK2_UNSIZED >> $@
 
 $(BUILD)/%.spr.pal.out $(BUILD)/%.spr.tiles.out: $(SPRITES)/%.png | build
 	superfamiconv -i $^ -p $(BUILD)/$*.spr.pal.out -t $(BUILD)/$*.spr.tiles.out -S -B 4
 
 $(BUILD)/%.spr.fth: $(BUILD)/%.spr.pal.out $(BUILD)/%.spr.tiles.out | build
-	./map-to-forth.lua $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $^ /dev/null BANK2_UNSIZED > $@
+	NAME=$(shell echo '$*' | tr '[:lower:]' '[:upper:]'); \
+	./bin-to-forth.lua "$$NAME-TILES" $(BUILD)/$*.spr.tiles.out BANK2_UNSIZED > $@; \
+	./bin-to-forth.lua "$$NAME-PAL" $(BUILD)/$*.spr.pal.out BANK2_UNSIZED >> $@
 
 $(BUILD)/%.spr2b.pal.out $(BUILD)/%.spr2b.tiles.out: $(SPRITES)/%.png | build
 	superfamiconv -i $^ -p $(BUILD)/$*.spr2b.pal.out -t $(BUILD)/$*.spr2b.tiles.out -S -B 2
 
 $(BUILD)/%.spr2b.fth: $(BUILD)/%.spr2b.pal.out $(BUILD)/%.spr2b.tiles.out | build
-	./map-to-forth.lua $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $^ /dev/null BANK1_UNSIZED > $@
+	NAME=$(shell echo '$*' | tr '[:lower:]' '[:upper:]'); \
+	./bin-to-forth.lua "$$NAME-TILES" $(BUILD)/$*.spr2b.tiles.out BANK1_UNSIZED > $@; \
+	./bin-to-forth.lua "$$NAME-PAL" $(BUILD)/$*.spr2b.pal.out BANK1_UNSIZED >> $@
 
 $(BUILD)/%.map.csv: $(ASSETS)/%.tmx | build
 	xvfb-run -a tiled --export-map csv $< $@
