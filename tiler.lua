@@ -218,11 +218,70 @@ function write_palette(file)
   file:write(string.char(0,0,0xFF,0x7F))
 end
 
-function write_heightmap(grid, file)
-  for y=0,grid.height-1 do
-    for x=0,grid.width-1 do
-      file:write(string.char(grid:get(x,y)))
+function count(tbl)
+  local sum = 0
+  for i=1,#tbl do
+    if tbl[i] then
+      sum = sum + 1
     end
+  end
+  return sum
+end
+
+-- Assumes that only two heights are present and that they are 1 away from each
+-- other.
+function get_tile_byte(x0y0, x1y0, x0y1, x1y1)
+  local lowest = math.min(x0y0, x1y0, x0y1, x1y1)
+  local highest = math.max(x0y0, x1y0, x0y1, x1y1)
+  assert(highest-lowest <= 1)
+  assert(lowest >= 0)
+  assert(lowest < 16)
+  local low_count = count{
+    x0y0 == lowest,
+    x1y0 == lowest,
+    x0y1 == lowest,
+    x1y1 == lowest,
+  }
+  if low_count == 4 then
+    -- flat
+    return lowest
+  end
+  local x_increasing = x0y0 < x1y0 or x0y1 < x1y1
+  local y_increasing = x0y0 < x0y1 or x1y0 < x1y1
+  local prefix = 0
+  if x0y0 == x1y0 and x0y1 == x1y1 then
+    -- ignore x, but set it to 1 so we don't accidentally write out zero (flat)
+    x_increasing = 1
+    prefix = 4
+  elseif x0y0 == x0y1 and x1y0 == x1y1 then
+    -- ignore y, but set it to 1 so we don't accidentally write out zero (flat)
+    y_increasing = 1
+    prefix = 0
+  elseif low_count == 1 then
+    -- use max() to combine x and y
+    prefix = 12
+  elseif low_count == 3 then
+    -- use min() to combine x and y
+    prefix = 8
+  else
+    assert(false, "Invalid tile combination?")
+  end
+  local dir = (x_increasing and 1 or 0) + (y_increasing and 2 or 0)
+  return ((prefix + dir) << 4) + lowest
+end
+
+function write_heightmap(grid, file)
+  for y=0,grid.height-2 do
+    for x=0,grid.width-2 do
+      local tile_byte = get_tile_byte(
+        grid:get(x,y),
+        grid:get(x+1,y),
+        grid:get(x,y+1),
+        grid:get(x+1, y+1))
+      file:write(string.char(tile_byte))
+    end
+    -- TODO: This could be a "void" tile instead (which is b00100....)
+    file:write(string.char(0))
   end
 end
 

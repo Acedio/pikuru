@@ -46,11 +46,78 @@ BANK!
   SWAP - 16/ 2/ ISO-ORIGIN-SCREEN-Y +
 ;
 
+\ TODO: This should be a native word, also unsure about the signature order.
+: FC@ ( addr bank -- byte )
+  BANK@ >R
+  BANK! C@ R> BANK!
+;
+
+\ Grab the byte that represents what kind of tile (and height) is at iso-coords.
+: TILE-BYTE ( iso-x iso-y -- tile-byte )
+  \ Multiply iso-y (8.8) by 32 so LSR thrice and mask.
+  2/ 2/ 2/ 0xFFE0 AND
+  \ Get only the top 8 of X.
+  SWAP HIBYTE
+  + \ Add to get coord offset
+  BANK2-CALL TEST-HEIGHTMAP +
+  BANK2-CALL TEST-HEIGHTMAP-BANK
+  FC@
+;
+
+: NEGATE-X?
+  0x10 AND 0=
+;
+
+: NEGATE-Y?
+  0x20 AND 0=
+;
+
+: ISO-Z ( iso-x iso-y -- iso-z )
+  2DUP TILE-BYTE >R
+
+  R@ 0xF0 AND 0= IF
+    \ Flat, just return height.
+    2DROP R> 0x0F AND SWAPBYTES
+  ;THEN
+  
+  \ We're in some sort of slope case.
+  R@ NEGATE-X? IF
+    0xFF ROT 0xFF AND - SWAP
+  ELSE
+    SWAP 0xFF AND SWAP
+  THEN
+  R@ NEGATE-Y? IF
+    0xFF SWAP 0xFF AND -
+  ELSE
+    0xFF AND
+  THEN
+
+  R@ 0xC0 AND CASE
+    0x00 OF
+      \ Only x
+      DROP R> 0x0F AND SWAPBYTES +
+    ENDOF
+    0x40 OF
+      \ Only y
+      SWAP DROP R> 0x0F AND SWAPBYTES +
+    ENDOF
+    0x80 OF
+      \ Min combine
+      MIN R> 0x0F AND SWAPBYTES +
+    ENDOF
+    0xC OF
+      \ Max combine
+      MAX R> 0x0F AND SWAPBYTES +
+    ENDOF
+  ENDCASE
+;
+
 \ TODO: z?
 \ iso-x and iso-y are in 8.8 fixed point.
 : ISO-TO-SCREEN ( iso-x iso-y -- screen-x screen-y )
   2DUP ISO-TO-SCREEN-X -ROT
-  ISO-TO-SCREEN-Y
+  2DUP ISO-TO-SCREEN-Y -ROT
+  ISO-Z 2* 2* 2* HIBYTE -
 ;
 
 : COORD-SUB ( ax ay bx by -- ax-bx ay-by )
@@ -81,29 +148,29 @@ BANK!
 
 ( -- )
 : DRAW-PLAYER
-  BREAKPOINT
   PLAYER-ISO-X @ PLAYER-ISO-Y @ ISO-TO-SCREEN
   CAMERA-OFFSET-X @ CAMERA-OFFSET-Y @ COORD-SUB
   SWAP 8 - SWAP 16 -
   \ For some reason OAM-OBJECT-COORDS! takes y before x.
   SWAP
   PLAYER-OAM-OBJECT OAM-OBJECT-COORDS!
+  0x30 SHADOW-OAM-LOWER PLAYER-OAM-OBJECT OAM-LOWER-OBJECTS + OAM-ATTRIBUTES C!
   TRUE PLAYER-OAM-OBJECT OAM-OBJECT-LARGE!
 ;
 
 : HANDLE-JOY
   JOY1-HELD @
     DUP BUTTON-LEFT AND PLAYER-ISO-X @ 0 > AND IF
-      -4 PLAYER-ISO-X +!
+      -8 PLAYER-ISO-X +!
     THEN
     DUP BUTTON-RIGHT AND PLAYER-ISO-X @ MAX-ISO-X < AND IF
-      4 PLAYER-ISO-X +!
+      8 PLAYER-ISO-X +!
     THEN
     DUP BUTTON-UP AND PLAYER-ISO-Y @ 0 > AND IF
-      -4 PLAYER-ISO-Y +!
+      -8 PLAYER-ISO-Y +!
     THEN
     DUP BUTTON-DOWN AND PLAYER-ISO-Y @ MAX-ISO-Y < AND IF
-      4 PLAYER-ISO-Y +!
+      8 PLAYER-ISO-Y +!
     THEN
   DROP
 ;
