@@ -158,21 +158,33 @@ BANK!
   TRUE PLAYER-OAM-OBJECT OAM-OBJECT-LARGE!
 ;
 
+: TAKE-SIGN ( sign-donor number -- signed-number )
+  SWAP 0< IF NEGATE THEN
+;
+
 : HANDLE-JOY
-  JOY1-HELD @
-    DUP BUTTON-LEFT AND PLAYER-ISO-X @ 0 > AND IF
-      -8 PLAYER-ISO-X +!
+  JOY1-HELD @ >R
+    0
+    R@ BUTTON-LEFT AND PLAYER-ISO-X @ 0 > AND IF
+      -10 +
     THEN
-    DUP BUTTON-RIGHT AND PLAYER-ISO-X @ MAX-ISO-X < AND IF
-      8 PLAYER-ISO-X +!
+    R@ BUTTON-RIGHT AND PLAYER-ISO-X @ MAX-ISO-X < AND IF
+      10 +
     THEN
-    DUP BUTTON-UP AND PLAYER-ISO-Y @ 0 > AND IF
-      -8 PLAYER-ISO-Y +!
+    0
+    R@ BUTTON-UP AND PLAYER-ISO-Y @ 0 > AND IF
+      -10 +
     THEN
-    DUP BUTTON-DOWN AND PLAYER-ISO-Y @ MAX-ISO-Y < AND IF
-      8 PLAYER-ISO-Y +!
+    R@ BUTTON-DOWN AND PLAYER-ISO-Y @ MAX-ISO-Y < AND IF
+      10 +
     THEN
-  DROP
+    \ If we're moving in two directions, shrink the magnitude.
+    OVER 0<> OVER 0<> AND IF
+      7 TAKE-SIGN SWAP 7 TAKE-SIGN SWAP
+    THEN
+    PLAYER-ISO-Y +!
+    PLAYER-ISO-X +!
+  R> DROP
 ;
 
 : STAGE-NMI
