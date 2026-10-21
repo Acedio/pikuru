@@ -42,8 +42,8 @@ BANK!
 64 14 - TILE-SIZE-PIXELS * CONSTANT MAX-Y-SCROLL
 
 12 CONSTANT RUN-SPEED
-0x1000 CONSTANT DASH-SPEED
-0x0040 CONSTANT DASH-DECAY
+0x2000 CONSTANT DASH-SPEED
+0x0400 CONSTANT DASH-DECAY
 
 64 0x100 * CONSTANT MAX-ISO-X
 64 0x100 * CONSTANT MAX-ISO-Y
@@ -226,12 +226,53 @@ DROP
   PLAYER-OAM-OBJECT OAM-OBJECT-COORDS!
 ;
 
-: TAKE-SIGN ( sign-donor number -- signed-number )
-  SWAP 0< IF NEGATE THEN
+: 3/4 ( i -- 3/4*i )
+  2/ DUP 2/ +
 ;
 
-: 3/4 ( i -- 3/4*i )
-  2/ 2/ DUP DUP + +
+: GET-JOY-DIR ( -- xsign ysign )
+  JOY1-HELD @ >R
+    0
+    R@ BUTTON-LEFT AND IF
+      1-
+    THEN
+    R@ BUTTON-RIGHT AND IF
+      1+
+    THEN
+    0
+    R@ BUTTON-UP AND IF
+      1-
+    THEN
+    R@ BUTTON-DOWN AND IF
+      1+
+    THEN
+  R> DROP
+;
+
+: TAKE-SIGN ( sign magnitude -- signed-magnitude )
+  OVER 0= IF
+    DROP \ Leave the 0.
+  ;THEN
+  SWAP 0< IF
+    NEGATE
+  THEN
+;
+
+\ Scale ({-1,0,1}, {-1,0,1}) coordinate directions by the `scale` amount,
+\ accounting for the case where diagonals scale less (to yield the same-ish
+\ magnitude).
+: SCALE-DIR ( xsign ysign scale -- x y )
+  -ROT OVER 0<> OVER 0<> AND IF
+    \ Both directions pressed.
+    ROT 3/4
+  ELSE
+    ROT
+  THEN
+  TUCK
+  TAKE-SIGN
+  -ROT
+  TAKE-SIGN
+  SWAP
 ;
 
 : HANDLE-JOY
@@ -243,32 +284,14 @@ DROP
     DUP 0 < IF DROP 0 THEN
     PLAYER-DASH !
   THEN
-  JOY1-HELD @ >R
-    0
-    R@ BUTTON-LEFT AND PLAYER-ISO-X @ 0 > AND IF
-      RUN-SPEED PLAYER-DASH @ HIBYTE + -
-    THEN
-    R@ BUTTON-RIGHT AND PLAYER-ISO-X @ MAX-ISO-X < AND IF
-      RUN-SPEED PLAYER-DASH @ HIBYTE + +
-    THEN
-    0
-    R@ BUTTON-UP AND PLAYER-ISO-Y @ 0 > AND IF
-      RUN-SPEED PLAYER-DASH @ HIBYTE + -
-    THEN
-    R@ BUTTON-DOWN AND PLAYER-ISO-Y @ MAX-ISO-Y < AND IF
-      RUN-SPEED PLAYER-DASH @ HIBYTE + +
-    THEN
-    \ If we're moving in two directions, shrink the magnitude.
-    OVER 0<> OVER 0<> AND IF
-      \ 7 TAKE-SIGN SWAP 7 TAKE-SIGN SWAP
-      3/4 SWAP 3/4 SWAP
-    THEN
-    2DUP
-    PLAYER-ISO-Y +!
-    PLAYER-ISO-X +!
-    2/ BOX-ISO-Y +!
-    2/ BOX-ISO-X +!
-  R> DROP
+  GET-JOY-DIR
+  2DUP 
+  RUN-SPEED PLAYER-DASH @ HIBYTE + SCALE-DIR
+  PLAYER-ISO-Y +!
+  PLAYER-ISO-X +!
+  RUN-SPEED 2/ SCALE-DIR
+  BOX-ISO-Y +!
+  BOX-ISO-X +!
 ;
 
 : UPDATE-BOX
