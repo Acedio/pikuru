@@ -278,14 +278,14 @@ function write_heightmap(grid, file)
       local x1y0 = grid:get(x+1,y)
       local x0y1 = grid:get(x,y+1)
       local x1y1 = grid:get(x+1, y+1)
-      -- TODO: Write a "void" tile (which is b00100....) if empty.
-      if x0y0 >= 0 and x1y0 >= 0 and x0y1 >= 0 and x1y1 >= 0 then
+      if x0y0 < 0 or x1y0 < 0 or x0y1 < 0 or x1y1 < 0 then
+        -- Write a "void" tile (which is 0b0100....) if empty.
+        file:write(string.char(0x40))
+      else
         local tile_byte = get_tile_byte(x0y0, x1y0, x0y1, x1y1)
         file:write(string.char(tile_byte))
       end
     end
-    -- TODO: This could be a "void" tile instead (which is b00100....)
-    file:write(string.char(0))
   end
 end
 

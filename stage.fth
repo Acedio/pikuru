@@ -48,7 +48,7 @@ BANK!
 64 0x100 * CONSTANT MAX-ISO-X
 64 0x100 * CONSTANT MAX-ISO-Y
 
-0x0190 CONSTANT BOX-HEIGHT
+0x0180 CONSTANT BOX-HEIGHT
 
 : 16/ 2/ 2/ 2/ 2/ ; LABEL DIV16
 
@@ -99,6 +99,12 @@ BANK!
 
 : ISO-Z ( iso-x iso-y -- iso-z )
   2DUP TILE-BYTE >R
+
+  R@ 0xF0 AND 0x40 = IF
+    \ Empty tile, return negative.
+    2DROP R> DROP
+    0xFF00
+  ;THEN
 
   R@ 0xF0 AND 0= IF
     \ Flat, just return height.
@@ -205,13 +211,19 @@ DROP
 
     \ TODO: For performance reasons, just draw the last shadow for now.
     NUM-BOXES 1- I = IF
-      TEMP-X @ TEMP-Y @ ISO-TO-SCREEN
-      TEMP-X @ TEMP-Y @ ISO-Z ISO-Z-TO-Y-OFFSET -
-      CAMERA-OFFSET-X @ CAMERA-OFFSET-Y @ COORD-SUB
-      SWAP 8 - SWAP 16 -
-      \ For some reason OAM-OBJECT-COORDS! takes y before x.
-      SWAP
-      BOX0-SHADOW-OAM-OBJECT NUM-BOXES 1- + I - OAM-OBJECT-COORDS-WITHOUT-NEGX!
+      TEMP-X @ TEMP-Y @ ISO-Z
+      DUP 0< IF
+        DROP
+        -32 0 BOX0-SHADOW-OAM-OBJECT NUM-BOXES 1- + I - OAM-OBJECT-COORDS-WITHOUT-NEGX!
+      ELSE
+        TEMP-X @ TEMP-Y @ ISO-TO-SCREEN
+        ROT ISO-Z-TO-Y-OFFSET -
+        CAMERA-OFFSET-X @ CAMERA-OFFSET-Y @ COORD-SUB
+        SWAP 8 - SWAP 16 -
+        \ For some reason OAM-OBJECT-COORDS! takes y before x.
+        SWAP
+        BOX0-SHADOW-OAM-OBJECT NUM-BOXES 1- + I - OAM-OBJECT-COORDS-WITHOUT-NEGX!
+      THEN
     THEN
 
     BOX-ISO-DELTA-X @ TEMP-X +!
@@ -292,12 +304,13 @@ DROP
     DUP 0 < IF DROP 0 THEN
     PLAYER-DASH !
   THEN
+
   GET-JOY-DIR
   2DUP 
   RUN-SPEED PLAYER-DASH @ HIBYTE + SCALE-DIR
   PLAYER-ISO-Y +!
   PLAYER-ISO-X +!
-  RUN-SPEED 2/ SCALE-DIR
+  RUN-SPEED 2/ 2/ SCALE-DIR
   BOX-ISO-Y +!
   BOX-ISO-X +!
 ;
@@ -384,7 +397,13 @@ DROP
 : STAGE-MAIN
   HANDLE-JOY
 
-  PLAYER-ISO-X @ PLAYER-ISO-Y @ ISO-Z PLAYER-ISO-Z !
+  PLAYER-ISO-X @ PLAYER-ISO-Y @ ISO-Z
+
+  DUP 0< IF
+    DROP STAGE-INIT
+  ELSE
+    PLAYER-ISO-Z !
+  THEN
 
   UPDATE-BOX
 
