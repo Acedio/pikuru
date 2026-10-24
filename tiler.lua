@@ -200,11 +200,14 @@ function write_tiles(tiles, file)
     -- Planes 0 and 1 (1 is empty).
     for y=0,7 do
       local plane_0_byte = row_as_byte(tiles[i], y, 1)
-      file:write(string.char(plane_0_byte, 0))
+      local plane_1_byte = row_as_byte(tiles[i], y, 2)
+      file:write(string.char(plane_0_byte, plane_1_byte))
     end
     -- Planes 2 and 3 are empty.
     for y=0,7 do
-      file:write(string.char(0, 0))
+      local plane_2_byte = row_as_byte(tiles[i], y, 4)
+      local plane_3_byte = row_as_byte(tiles[i], y, 8)
+      file:write(string.char(plane_2_byte, plane_3_byte))
     end
   end
 end
@@ -454,6 +457,44 @@ function draw_iso_square_outline(grid, screen, origin_screen, color, x, y)
   end
 end
 
+function tri_color(corner, c1, c2)
+  local v1 = c1 - corner
+  local v2 = c2 - corner
+
+  if v1.z ~= 0 then
+    if v1.x == 0 then
+      if v1.y == v1.z then
+        return 1
+      else
+        return 4
+      end
+    else
+      if v1.x == v1.z then
+        return 3
+      else
+        return 2
+      end
+    end
+  elseif v2.z ~= 0 then
+    if v2.x == 0 then
+      if v2.y == v2.z then
+        return 1
+      else
+        return 4
+      end
+    else
+      if v2.x == v2.z then
+        return 3
+      else
+        return 2
+      end
+    end
+  else
+    -- flat
+    return 5
+  end
+end
+
 function draw_iso_square(grid, screen, origin_screen, x, y)
   local ul = corner_iso(grid, x, y, 0, 0)
   local ur = corner_iso(grid, x, y, 1, 0)
@@ -469,8 +510,22 @@ function draw_iso_square(grid, screen, origin_screen, x, y)
   local sur = origin_screen + iso_to_screen(ur.x, ur.y, ur.z)
   local sbl = origin_screen + iso_to_screen(bl.x, bl.y, bl.z)
   local sbr = origin_screen + iso_to_screen(br.x, br.y, br.z)
-  draw_tri(screen, 255, sul, sur, sbl)
-  draw_tri(screen, 255, sbr, sur, sbl)
+
+  if ul.z ~= br.z and bl.z == ur.z then
+    local c1 = tri_color(ur, ul, br)
+    draw_tri(screen, c1, sur, sul, sbr)
+    local c2 = tri_color(bl, ul, br)
+    draw_tri(screen, c2, sbl, sul, sbr)
+  elseif ul.z == br.z and bl.z ~= ur.z then
+    local c1 = tri_color(ul, ur, bl)
+    draw_tri(screen, c1, sul, sur, sbl)
+    local c2 = tri_color(br, ur, bl)
+    draw_tri(screen, c2, sbr, sur, sbl)
+  else
+    local c = tri_color(ul, ur, bl)
+    draw_tri(screen, c, sul, sur, sbl)
+    draw_tri(screen, c, sbr, sur, sbl)
+  end
 end
 
 -- Draws the given heightmap on an isometric grid.
@@ -566,7 +621,7 @@ local img = draw_iso_heightmap(grid)
 
 local pgm_file = io.open(name_prefix .. ".pgm", "w")
 assert(pgm_file)
-write_pgm(img, 255, pgm_file)
+write_pgm(img, 6, pgm_file)
 pgm_file:close()
 
 local result = tilify(img, 16)
@@ -574,7 +629,7 @@ local sixteen_result = sixteen_to_eight(result.tiles, result.tilemap)
 
 local tiles_pgm = io.open(name_prefix .. ".tiles.pgm", "w")
 assert(tiles_pgm)
-write_pgm(Grid.cat(sixteen_result.tiles), 255, tiles_pgm)
+write_pgm(Grid.cat(sixteen_result.tiles), 6, tiles_pgm)
 tiles_pgm:close()
 
 local tilemap_file = io.open(name_prefix .. ".map.map.out", "wb")
