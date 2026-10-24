@@ -94,12 +94,12 @@ function Grid.cat(grids)
   }
 end
 
--- Writes `grid` (a Grid of grayscale values) as a PGM to file.
-function write_pgm(grid, max_value, file)
-  file:write(string.format("P2\n%d %d\n%d\n", grid.width, grid.height, max_value))
-  for y=0,grid.height-1 do
-    for x=0,grid.width-1 do
-      file:write(string.format("%d ", grid:get(x,y)))
+-- Writes `img` (a Grid of grayscale values) as a PGM to file.
+function write_pgm(img, max_value, file)
+  file:write(string.format("P2\n%d %d\n%d\n", img.width, img.height, max_value))
+  for y=0,img.height-1 do
+    for x=0,img.width-1 do
+      file:write(string.format("%d ", img:get(x,y)))
     end
     file:write("\n")
   end
@@ -107,15 +107,15 @@ end
 
 -- Returns a table of "tilemap" (a grid of tile indices) and "tiles" (the tiles
 -- themselves).
-function tilify(grid, tile_size)
-  assert(grid.width % tile_size == 0, string.format("Width (%d) must be divisible by tile_size (%d)!", grid.width, tile_size))
-  assert(grid.height % tile_size == 0, string.format("Height (%d) must be divisible by tile_size (%d)!", grid.height, tile_size))
+function tilify(img, tile_size)
+  assert(img.width % tile_size == 0, string.format("Width (%d) must be divisible by tile_size (%d)!", img.width, tile_size))
+  assert(img.height % tile_size == 0, string.format("Height (%d) must be divisible by tile_size (%d)!", img.height, tile_size))
   local tiles = {}
   local tile_hashes = {}
-  local tilemap = Grid:newWithDimensions(grid.width//tile_size, grid.height//tile_size)
-  for y=0,grid.height-tile_size,tile_size do
-    for x=0,grid.width-tile_size,tile_size do
-      local tile = grid:subgrid(x,y,tile_size,tile_size)
+  local tilemap = Grid:newWithDimensions(img.width//tile_size, img.height//tile_size)
+  for y=0,img.height-tile_size,tile_size do
+    for x=0,img.width-tile_size,tile_size do
+      local tile = img:subgrid(x,y,tile_size,tile_size)
       local hash = tile:hash()
       local index = tile_hashes[hash]
       if not index then
@@ -294,7 +294,7 @@ function write_heightmap(grid, file)
 end
 
 -- For when W > H.
-function draw_line_shallow(grid, value, p1, p2)
+function draw_line_shallow(img, value, p1, p2)
   local dx = p2.x - p1.x
   local dy = p2.y - p1.y
   local y = p1.y
@@ -305,7 +305,7 @@ function draw_line_shallow(grid, value, p1, p2)
   end
   local D = 2 * dy - dx
   for x=p1.x,p2.x do
-    grid:set(x,y,value)
+    img:set(x,y,value)
     if D > 0 then
       y = y + yi
       D = D + (2 * (dy - dx))
@@ -316,7 +316,7 @@ function draw_line_shallow(grid, value, p1, p2)
 end
 
 -- For when H > W.
-function draw_line_steep(grid, value, p1, p2)
+function draw_line_steep(img, value, p1, p2)
   local dx = p2.x - p1.x
   local dy = p2.y - p1.y
   local x = p1.x
@@ -327,7 +327,7 @@ function draw_line_steep(grid, value, p1, p2)
   end
   local D = 2 * dx - dy
   for y=p1.y,p2.y do
-    grid:set(x,y,value)
+    img:set(x,y,value)
     if D > 0 then
       x = x + xi
       D = D + (2 * (dx - dy))
@@ -337,19 +337,69 @@ function draw_line_steep(grid, value, p1, p2)
   end
 end
 
-function draw_line(grid, value, p1, p2)
+function draw_line(img, value, p1, p2)
   if math.abs(p1.y - p2.y) < math.abs(p1.x - p2.x) then
     if p1.x < p2.x then
-      draw_line_shallow(grid, value, p1, p2)
+      draw_line_shallow(img, value, p1, p2)
     else
-      draw_line_shallow(grid, value, p2, p1)
+      draw_line_shallow(img, value, p2, p1)
     end
   else
     if p1.y < p2.y then
-      draw_line_steep(grid, value, p1, p2)
+      draw_line_steep(img, value, p1, p2)
     else
-      draw_line_steep(grid, value, p2, p1)
+      draw_line_steep(img, value, p2, p1)
     end
+  end
+end
+
+--    p2
+--   /  ---
+-- p1___   --
+--      -----p3
+--
+-- Draw two sub triangles with vertical lines, first the left then the right.
+function draw_tri(img, value, p1, p2, p3)
+  local p = {p1, p2, p3}
+  table.sort(p, function (a, b) return a.x < b.x end)
+
+  for x=p[1].x,p[2].x do
+    local w1 = p[3].x - p[1].x
+    local y1
+    if w1 > 0 then
+      y1 = p[1].y + math.floor((p[3].y-p[1].y)*(x-p[1].x)/w1)
+    else
+      y1 = p[1].y
+    end
+
+    local w2 = p[2].x - p[1].x
+    local y2
+    if w2 > 0 then
+      y2 = p[1].y + math.floor((p[2].y-p[1].y)*(x-p[1].x)/w2)
+    else
+      y2 = p[2].y
+    end
+
+    draw_line(img, value, v2.v2(x,y1), v2.v2(x,y2))
+  end
+  for x=p[2].x,p[3].x do
+    local w1 = p[3].x - p[1].x
+    local y1
+    if w1 > 0 then
+      y1 = p[1].y + math.floor((p[3].y-p[1].y)*(x-p[1].x)/w1)
+    else
+      y1 = p[3].y
+    end
+
+    local w2 = p[3].x - p[2].x
+    local y2
+    if w2 > 0 then
+      y2 = p[2].y + math.floor((p[3].y-p[2].y)*(x-p[2].x)/w2)
+    else
+      y2 = p[2].y
+    end
+
+    draw_line(img, value, v2.v2(x,y1), v2.v2(x,y2))
   end
 end
 
@@ -379,7 +429,7 @@ function corner_iso(grid, x, y, cx, cy)
   return v3.v3(x+cx,y+cy,z)
 end
 
-function draw_iso_square(grid, screen, origin_screen, x, y)
+function draw_iso_square_outline(grid, screen, origin_screen, color, x, y)
   local ul = corner_iso(grid, x, y, 0, 0)
   local ur = corner_iso(grid, x, y, 1, 0)
   local bl = corner_iso(grid, x, y, 0, 1)
@@ -389,7 +439,7 @@ function draw_iso_square(grid, screen, origin_screen, x, y)
     if p1.z >= 0 and p2.z >= 0 then
       local screen_p1 = origin_screen + iso_to_screen(p1.x, p1.y, p1.z)
       local screen_p2 = origin_screen + iso_to_screen(p2.x, p2.y, p2.z)
-      draw_line(screen, 255, screen_p1, screen_p2)
+      draw_line(screen, color, screen_p1, screen_p2)
     end
   end
   line(ul,ur)
@@ -404,6 +454,25 @@ function draw_iso_square(grid, screen, origin_screen, x, y)
   end
 end
 
+function draw_iso_square(grid, screen, origin_screen, x, y)
+  local ul = corner_iso(grid, x, y, 0, 0)
+  local ur = corner_iso(grid, x, y, 1, 0)
+  local bl = corner_iso(grid, x, y, 0, 1)
+  local br = corner_iso(grid, x, y, 1, 1)
+
+  -- TODO: Support tiles with one missing point (triangles).
+  if ul.z < 0 or ur.z < 0 or bl.z < 0 or br.z < 0 then
+    return
+  end
+
+  local sul = origin_screen + iso_to_screen(ul.x, ul.y, ul.z)
+  local sur = origin_screen + iso_to_screen(ur.x, ur.y, ur.z)
+  local sbl = origin_screen + iso_to_screen(bl.x, bl.y, bl.z)
+  local sbr = origin_screen + iso_to_screen(br.x, br.y, br.z)
+  draw_tri(screen, 255, sul, sur, sbl)
+  draw_tri(screen, 255, sbr, sur, sbl)
+end
+
 -- Draws the given heightmap on an isometric grid.
 function draw_iso_heightmap(grid)
   local image_width = (grid.width / 2) * 16 + (grid.height / 2) * 16
@@ -414,6 +483,7 @@ function draw_iso_heightmap(grid)
   for y=0,grid.height/2-1 do
     for x=0,grid.width/2-1 do
       draw_iso_square(grid, screen, origin_screen, x, y)
+      draw_iso_square_outline(grid, screen, origin_screen, 0, x, y)
     end
   end
 
