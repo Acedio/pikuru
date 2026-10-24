@@ -7,6 +7,8 @@ local name_prefix = arg[1]
 
 local Grid = {}
 
+local TILEMAP_PALETTE = 3
+
 -- 0-based
 function Grid:new(o)
   o = o or {
@@ -211,13 +213,14 @@ function write_tilemap16(tilemap, file)
   assert(tilemap.width == 64, "Tilemap must be 64 wide.")
   for y=0,tilemap.height-1 do
     for x=0,tilemap.width-1 do
-      file:write(string.char(tilemap:get(x,y), 0))
+      file:write(string.char(tilemap:get(x,y), TILEMAP_PALETTE << 2))
     end
   end
 end
 
 function write_palette(file)
-  file:write(string.char(0,0,0xFF,0x7F))
+  -- Kind of light blue-ish color.
+  file:write(string.char(0,0,0xE0,0x7D))
 end
 
 function count(tbl)

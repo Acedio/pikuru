@@ -436,8 +436,8 @@ DROP
   HIBYTE 0x210E C!
 ;
 
-\ TODO: tiler.lua treats this as a constant for now.
-0x00 CONSTANT TILE-PALETTE-CGRAM-ADDR \ Word addr
+\ This should match the constant in tiler.lua.
+0x30 CONSTANT TILE-PALETTE-CGRAM-ADDR \ Word addr
 
 : COPY-TILE-PALETTE
   TEST-PAL
