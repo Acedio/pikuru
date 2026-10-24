@@ -8,6 +8,7 @@ CBANK@
 2 CBANK!
 INCLUDE std.fth
 INCLUDE snes-std.fth
+INCLUDE cgram.fth
 
 INCLUDE build/test.map.fth
 
@@ -435,6 +436,17 @@ DROP
   HIBYTE 0x210E C!
 ;
 
+\ TODO: tiler.lua treats this as a constant for now.
+0x00 CONSTANT TILE-PALETTE-CGRAM-ADDR \ Word addr
+
+: COPY-TILE-PALETTE
+  TEST-PAL
+  TEST-PAL-BANK
+  TEST-PAL-BYTES
+  TILE-PALETTE-CGRAM-ADDR
+  COPY-CGRAM-PALETTE-LONG
+;
+
 : MAP-NMI
   \ Enable BG1. In lowram, so fine to write from separate bank.
   \ TODO: Maybe creating a vram-lowram.fth file that we can include in other
@@ -455,6 +467,8 @@ DROP
 
   MAP-NMI-STATE @ CASE
     MAP-NMI-STATE-TILES-1 OF
+      COPY-TILE-PALETTE
+
       TEST-TILES 0 + 0x0400 0x1000 TILE-DMA
       MAP-NMI-STATE-TILES-2 MAP-NMI-STATE !
     ENDOF
