@@ -1,6 +1,7 @@
 #!/usr/bin/lua
 
 local v2 = require("v2")
+local v3 = require("v3")
 
 local name_prefix = arg[1]
 
@@ -363,37 +364,57 @@ end
 --           y-axis
 --
 -- The returned point is in (x,y) screen coordinates.
-function iso_point(x, y, z)
+function iso_to_screen(x, y, z)
   return v2.v2(x * 16 + y * 16, y * 8 - x * 8 - z * 8)
+end
+
+-- Return a v3 representing the corner (cx, cy) of the square at (x, y).
+--
+-- cx and cy should be 0 or 1. (0,0) is the upper-left corner.
+function corner_iso(grid, x, y, cx, cy)
+  local z = grid:get(x*2+cx, y*2+cy)
+  return v3.v3(x+cx,y+cy,z)
+end
+
+function draw_iso_square(grid, screen, origin_screen, x, y)
+  local ul = corner_iso(grid, x, y, 0, 0)
+  local ur = corner_iso(grid, x, y, 1, 0)
+  local bl = corner_iso(grid, x, y, 0, 1)
+  local br = corner_iso(grid, x, y, 1, 1)
+
+  local line = function(p1,p2)
+    if p1.z >= 0 and p2.z >= 0 then
+      local screen_p1 = origin_screen + iso_to_screen(p1.x, p1.y, p1.z)
+      local screen_p2 = origin_screen + iso_to_screen(p2.x, p2.y, p2.z)
+      draw_line(screen, 255, screen_p1, screen_p2)
+    end
+  end
+  line(ul,ur)
+  line(bl,br)
+  line(ul,bl)
+  line(ur,br)
+
+  if ul.z ~= br.z and bl.z == ur.z then
+    line(ul,br)
+  elseif ul.z == br.z and bl.z ~= ur.z then
+    line(bl,ur)
+  end
 end
 
 -- Draws the given heightmap on an isometric grid.
 function draw_iso_heightmap(grid)
   local image_width = (grid.width / 2) * 16 + (grid.height / 2) * 16
   local image_height = (grid.width / 2) * 8 + (grid.height / 2) * 8 + 16
-  local origin = v2.v2(0,image_height/2-1)
-  local img = Grid:newWithDimensions(image_width, image_height)
-  img:fill(0)
+  local origin_screen = v2.v2(0,image_height/2-1)
+  local screen = Grid:newWithDimensions(image_width, image_height)
+  screen:fill(0)
   for y=0,grid.height/2-1 do
     for x=0,grid.width/2-1 do
-      local tl = v2.v2(x*2, y*2)
-      local line = function(x1,y1,x2,y2)
-        local p1h = grid:get(tl.x+x1,tl.y+y1)
-        local p2h = grid:get(tl.x+x2,tl.y+y2)
-        if p1h >= 0 and p2h >= 0 then
-          local p1 = origin + iso_point(x+x1, y+y1, p1h)
-          local p2 = origin + iso_point(x+x2, y+y2, p2h)
-          draw_line(img, 255, p1, p2)
-        end
-      end
-      line(0,0,1,0)
-      line(0,1,1,1)
-      line(0,0,0,1)
-      line(1,0,1,1)
+      draw_iso_square(grid, screen, origin_screen, x, y)
     end
   end
 
-  return img
+  return screen
 end
 
 -- z values of the corners of each tile (so each tile is 4 values).
