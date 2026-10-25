@@ -221,9 +221,41 @@ function write_tilemap16(tilemap, file)
   end
 end
 
+function eight_to_five_bit_color(r, g, b)
+  assert(r >= 0)
+  assert(r < 256)
+  assert(g >= 0)
+  assert(g < 256)
+  assert(b >= 0)
+  assert(b < 256)
+  local r5 = r >> 3
+  local g5 = g >> 3
+  local b5 = b >> 3
+  local word = (b5 << 10) | (g5 << 5) | r5
+  return {word & 0xFF, (word & 0xFF00) >> 8}
+end
+
+function eight_to_pal_entry(r, g, b)
+  local five_bit_bytes = eight_to_five_bit_color(r, g, b)
+  return string.char(five_bit_bytes[1], five_bit_bytes[2])
+end
+
+function hex_to_pal_entry(hexcode)
+  assert(hexcode <= 0xFFFFFF)
+  assert(hexcode >= 0)
+  local r = hexcode >> 16
+  local g = (hexcode >> 8) & 0xFF
+  local b = hexcode & 0xFF
+  return eight_to_pal_entry(r, g, b)
+end
+
 function write_palette(file)
-  -- Kind of light blue-ish color.
-  file:write(string.char(0,0,0xE0,0x7D))
+  file:write(hex_to_pal_entry(0x000000))
+  file:write(hex_to_pal_entry(0x3A7085))
+  file:write(hex_to_pal_entry(0x528DA4))
+  file:write(hex_to_pal_entry(0x71ABC2))
+  file:write(hex_to_pal_entry(0xA8D1E1))
+  file:write(hex_to_pal_entry(0xC8DFE8))
 end
 
 function count(tbl)
