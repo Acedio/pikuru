@@ -470,6 +470,23 @@ DROP
   Y-SCROLL @ SET-BG1-Y-SCROLL
 
   MAP-NMI-STATE @ CASE
+    \ Put this first to ensure a quick return in the happy path.
+    MAP-NMI-STATE-MAPPING OF
+      FULL-COPY-NMI-READY @ IF
+        FULL-COPY-DMA
+        FALSE FULL-COPY-NMI-READY !
+      THEN
+      COLUMN-COPY-NMI-READY @ IF
+        COLUMN-COPY-DMA
+        FALSE COLUMN-COPY-NMI-READY !
+      THEN
+      ROW-COPY-NMI-READY @ IF
+        ROW-COPY-DMA
+        FALSE ROW-COPY-NMI-READY !
+      THEN
+    ENDOF
+    \ TODO: The tile loading should just be one NMI state that increments a
+    \ sub-state integer.
     MAP-NMI-STATE-TILES-1 OF
       COPY-TILE-PALETTE
 
@@ -503,20 +520,6 @@ DROP
     MAP-NMI-STATE-TILES-8 OF
       TEST-TILES 0x1C00 + 0x0400 0x1E00 TILE-DMA
       MAP-NMI-STATE-MAPPING MAP-NMI-STATE !
-    ENDOF
-    MAP-NMI-STATE-MAPPING OF
-      FULL-COPY-NMI-READY @ IF
-        FULL-COPY-DMA
-        FALSE FULL-COPY-NMI-READY !
-      THEN
-      COLUMN-COPY-NMI-READY @ IF
-        COLUMN-COPY-DMA
-        FALSE COLUMN-COPY-NMI-READY !
-      THEN
-      ROW-COPY-NMI-READY @ IF
-        ROW-COPY-DMA
-        FALSE ROW-COPY-NMI-READY !
-      THEN
     ENDOF
   ENDCASE
 ;
