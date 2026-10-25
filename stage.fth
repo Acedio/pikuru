@@ -390,6 +390,29 @@ DROP
   SWAP
 ;
 
+\ If the signs match, double the value. If they're opposite, halve. If 0, no-op.
+: SIGN-AMPLIFY ( vel sign -- scaled-vel )
+  DUP 0= IF
+    \ No slope, no scale.
+    DROP
+  ;THEN
+  OVER XOR 0x8000 AND 0<> IF
+    \ Match, double.
+    2*
+  ELSE
+    \ Opposite, halve.
+    2/
+  THEN
+;
+
+: SCALE-FOR-SLOPE ( xvel yvel -- scaled-x scaled-y )
+  >R
+  PLAYER-ISO-X @ PLAYER-ISO-Y @ ISO-SLOPE
+  \ X first
+  -ROT SIGN-AMPLIFY
+  R> ROT SIGN-AMPLIFY
+;
+
 : HANDLE-JOY
   JOY1-PRESSED @ BUTTON-Y AND IF
     DASH-SPEED PLAYER-DASH !
@@ -403,6 +426,7 @@ DROP
   GET-JOY-DIR
   2DUP 
   RUN-SPEED PLAYER-DASH @ HIBYTE + SCALE-DIR
+  SCALE-FOR-SLOPE
   PLAYER-ISO-Y +!
   PLAYER-ISO-X +!
   RUN-SPEED 2/ 2/ SCALE-DIR
@@ -506,10 +530,6 @@ DROP
   HANDLE-JOY
 
   PLAYER-ISO-X @ PLAYER-ISO-Y @ ISO-Z
-
-  PLAYER-ISO-X @ PLAYER-ISO-Y @ ISO-SLOPE
-  BREAKPOINT
-  2DROP
 
   DUP 0< IF
     DROP STAGE-INIT
