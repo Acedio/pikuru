@@ -141,7 +141,7 @@ BANK!
       \ Min combine
       MIN R> 0x0F AND SWAPBYTES +
     ENDOF
-    0xC OF
+    0xC0 OF
       \ Max combine
       MAX R> 0x0F AND SWAPBYTES +
     ENDOF
