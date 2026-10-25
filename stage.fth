@@ -148,6 +148,96 @@ BANK!
   ENDCASE
 ;
 
+\ +1 if slope is increasing on that axis, -1 if decreasing, or 0 if no slope.
+: ISO-SLOPE ( iso-x iso-y -- x-slope y-slope )
+  2DUP TILE-BYTE >R
+  \ Only care about the tile-relative coords for slope.
+  SWAP 0xFF AND SWAP 0xFF AND
+
+  R@ 0xF0 AND
+  DUP 0x40 =
+  SWAP 0 = OR IF
+    \ Empty tile or flat, return no slope.
+    2DROP R> DROP
+    0 0
+  ;THEN
+
+  R@ 0xC0 AND 0= IF
+    2DROP
+    R> NEGATE-X? IF
+      -1 0
+    ELSE
+      1 0
+    THEN
+  ;THEN
+  R@ 0xC0 AND 0x40 = IF
+    2DROP
+    R> NEGATE-Y? IF
+      0 -1
+    ELSE
+      0 1
+    THEN
+  ;THEN
+
+  \ Stack: X Y
+
+  \ TODO: I feel like this could be made simpler, but I don't want to spend
+  \ the time on it now :P
+  R@ NEGATE-Y? R@ NEGATE-X? = IF
+    (
+      *---x
+      |\...
+      | \..
+      |  \.
+      y   \
+
+      Points in the shaded region have the following slopes:
+
+         MIN  |  MAX
+      x+  0 1 | 1  0
+      x- -1 0 | 0 -1
+
+      If X < Y, then SWAP the X and Y result.
+    )
+    < \ X < Y?
+    R@ NEGATE-X? IF
+      -1 0
+    ELSE
+      0 1
+    THEN
+    ROT R> 0xC0 AND 0xC0 = XOR IF
+      SWAP
+    THEN
+  ELSE
+    (
+      *---x
+      |.../
+      |../ <- this is the 0x100 line.
+      |./
+      y/
+
+      Points in the shaded region have the following slopes:
+
+         MIN  |  MAX
+      x+  1 0 |  0 -1
+      x-  0 1 | -1  0
+
+      If X + Y >= 0x100, SWAP the X and Y result.
+    )
+
+    + 0x100 >= \ X + Y >= 0x100
+    R@ 0xC0 AND 0xC0 = XOR IF
+      \ MAX combination
+      0 -1
+    ELSE
+      1 0
+    THEN
+    R> NEGATE-X? IF
+      SWAP
+    THEN
+  THEN
+;
+
 : COORD-SUB ( ax ay bx by -- ax-bx ay-by )
   ROT SWAP -
   -ROT -
@@ -416,6 +506,10 @@ DROP
   HANDLE-JOY
 
   PLAYER-ISO-X @ PLAYER-ISO-Y @ ISO-Z
+
+  PLAYER-ISO-X @ PLAYER-ISO-Y @ ISO-SLOPE
+  BREAKPOINT
+  2DROP
 
   DUP 0< IF
     DROP STAGE-INIT
