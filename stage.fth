@@ -345,6 +345,30 @@ DROP
   2/ DUP 2/ +
 ;
 
+: GET-JOY-DIR-ORTHO ( -- xsign ysign )
+  JOY1-HELD @ >R
+    0 0
+    R@ BUTTON-LEFT AND IF
+      -1 -1 COORD-ADD
+    THEN
+    R@ BUTTON-RIGHT AND IF
+      1 1 COORD-ADD
+    THEN
+    R@ BUTTON-UP AND IF
+      1 -1 COORD-ADD
+    THEN
+    R@ BUTTON-DOWN AND IF
+      -1 1 COORD-ADD
+    THEN
+    DUP 0= IF
+      DROP 2/ 0
+    THEN
+    OVER 0= IF
+      2/
+    THEN
+  R> DROP
+;
+
 : GET-JOY-DIR ( -- xsign ysign )
   JOY1-HELD @ >R
     0
@@ -423,7 +447,7 @@ DROP
     PLAYER-DASH !
   THEN
 
-  GET-JOY-DIR
+  GET-JOY-DIR-ORTHO
   2DUP 
   RUN-SPEED PLAYER-DASH @ HIBYTE + SCALE-DIR
   SCALE-FOR-SLOPE
