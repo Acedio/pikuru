@@ -2,9 +2,9 @@ REQUIRE std.fth
 
 REQUIRE cgram.fth
 REQUIRE build/farstars.p1.map.fth
-REQUIRE build/farstars.tiles2b.fth
+REQUIRE build/farstars.spr2b.fth
 REQUIRE build/starfield.p2.map.fth
-REQUIRE build/stars.tiles.fth
+REQUIRE build/stars.spr.fth
 REQUIRE vram.fth
 
 : COPY-STARS

@@ -82,8 +82,8 @@ $(BUILD)/%.spr.pal.out $(BUILD)/%.spr.tiles.out: $(SPRITES)/%.png | build
 
 $(BUILD)/%.spr.fth: $(BUILD)/%.spr.pal.out $(BUILD)/%.spr.tiles.out | build
 	NAME=$(shell echo '$*' | tr '[:lower:]' '[:upper:]'); \
-	./bin-to-forth.lua "$$NAME-TILES" $(BUILD)/$*.spr.tiles.out BANK2_UNSIZED > $@; \
-	./bin-to-forth.lua "$$NAME-PAL" $(BUILD)/$*.spr.pal.out BANK2_UNSIZED >> $@
+	./bin-to-forth.lua "$$NAME-TILES" $(BUILD)/$*.spr.tiles.out BANK3_UNSIZED > $@; \
+	./bin-to-forth.lua "$$NAME-PAL" $(BUILD)/$*.spr.pal.out BANK3_UNSIZED >> $@
 
 $(BUILD)/%.spr2b.pal.out $(BUILD)/%.spr2b.tiles.out: $(SPRITES)/%.png | build
 	superfamiconv -i $^ -p $(BUILD)/$*.spr2b.pal.out -t $(BUILD)/$*.spr2b.tiles.out -S -B 2

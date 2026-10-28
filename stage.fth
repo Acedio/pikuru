@@ -515,8 +515,8 @@ DROP
       \ TODO: Copying this below STARS-NMI causes issues.
       COPY-OAM
 
-      \ Enable sprite layer.
-      0x10 0x10 BANK0-CALL BG-LAYER-ENABLE MASK!
+      \ Enable sprite layer and BG1. Disable the rest.
+      0x11 0x1F BANK0-CALL BG-LAYER-ENABLE MASK!
     ENDOF
   ENDCASE
 ;
@@ -573,4 +573,6 @@ DROP
   DRAW-PLAYER
 
   DRAW-BOXES
+
+  FALSE \ TODO: Signal to game.fth when we're done.
 ;
