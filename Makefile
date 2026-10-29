@@ -67,8 +67,8 @@ JUSTCOPY=tad-audio.inc forth/preamble.inc
 $(foreach file,$(JUSTCOPY),$(BUILD)/$(file)): $(JUSTCOPY)
 	cp $(JUSTCOPY) $(BUILD)
 
-$(BUILD)/test.map.pal.out $(BUILD)/test.map.tiles.out $(BUILD)/test.map.map.out $(BUILD)/test.map.heightmap.out: tiler.lua | build
-	./tiler.lua $(BUILD)/test
+$(BUILD)/test.map.pal.out $(BUILD)/test.map.tiles.out $(BUILD)/test.map.map.out $(BUILD)/test.map.heightmap.out: tiler.lua level1.csv | build
+	./tiler.lua level1.csv $(BUILD)/test
 
 $(BUILD)/%.map.fth: $(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out $(BUILD)/%.map.heightmap.out | build
 	NAME=$(shell echo '$*' | tr '[:lower:]' '[:upper:]'); \
