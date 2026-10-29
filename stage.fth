@@ -437,6 +437,51 @@ DROP
   R> ROT SIGN-AMPLIFY
 ;
 
+\ # Calculating thresholds for drop detection #
+\
+\ We do this based on an octagonal perimeter around the player. Using the
+\ absolute delta between player and jars:
+\
+\ y
+\ ^
+\ |--    <- ortho threshold (x < ortho && y < ortho)
+\ |  \  <-- diagonal threshold (x + y < diag)
+\ |   \
+\ |    |
+\ -------->x
+
+\ X and Y must be less than this.
+256 CONSTANT ORTHO-THRESHOLD-SCALER
+\ The 8.8 scaler for the diagonal threshold calculations (X + Y < THRESHOLD)
+\
+\ For a regular octagon, the diagonal threshold is (1 + 2^-0.5) times the ortho.
+\ That's 437 in 8.8.
+437 CONSTANT DIAG-THRESHOLD-SCALER
+
+\ 2.5x the scaler.
+5 DIAG-THRESHOLD-SCALER * 2/TZ CONSTANT DROP-THRESHOLD-DIAG
+5 ORTHO-THRESHOLD-SCALER * 2/TZ CONSTANT DROP-THRESHOLD-ORTHO
+
+: ABS ( val -- abs-val )
+  \ e.g. 21 ABS  ->  21
+  \                 ()()
+  \                 ()()
+  \                 ()()
+
+  DUP 0< IF NEGATE THEN
+;
+
+: DROPPED? ( dx dy -- dropped? )
+  ABS SWAP ABS
+  DUP DROP-THRESHOLD-ORTHO > IF
+    2DROP TRUE
+  ;THEN
+  OVER DROP-THRESHOLD-ORTHO > IF
+    2DROP TRUE
+  ;THEN
+  + DROP-THRESHOLD-DIAG >
+;
+
 : HANDLE-JOY
   JOY1-PRESSED @ BUTTON-Y AND IF
     DASH-SPEED PLAYER-DASH !
@@ -566,6 +611,12 @@ DROP
   THEN
 
   UPDATE-BOX
+
+  PLAYER-ISO-X @ PLAYER-ISO-Y @ BOX-ISO-X @ BOX-ISO-Y @ COORD-SUB
+
+  DROPPED? IF
+    STAGE-INIT
+  THEN
 
   \ TODO: Why are these the correct offsets?
   PLAYER-ISO-X @ PLAYER-ISO-Y @ ISO-TO-SCREEN
