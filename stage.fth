@@ -467,16 +467,14 @@ DROP
 
 \ The amount of acceleration based on how far away the top box is.
 : ACCEL-FROM-DISTANCE ( iso-distance -- acceleration )
-  \ NOTE: 2/ rounds towards -INF, not zero.
-  2/TZ 2/TZ 2/TZ 2/TZ 2/TZ
-  \ 2/ 2/ 2/ 2/ 2/
+  2/TZ 2/TZ 2/TZ 2/TZ
 ;
 
 : UPDATE-BOX
   BOX-ISO-X @ PLAYER-ISO-X @ - ACCEL-FROM-DISTANCE BOX-VEL-X +!
   BOX-ISO-Y @ PLAYER-ISO-Y @ - ACCEL-FROM-DISTANCE BOX-VEL-Y +!
-  BOX-VEL-X @ DUP 256/TZ - BOX-VEL-X !
-  BOX-VEL-Y @ DUP 256/TZ - BOX-VEL-Y !
+  BOX-VEL-X @ DUP 2* 256/TZ - BOX-VEL-X !
+  BOX-VEL-Y @ DUP 2* 256/TZ - BOX-VEL-Y !
   BOX-VEL-X @ 8.8-INT-PART BOX-ISO-X +!
   BOX-VEL-Y @ 8.8-INT-PART BOX-ISO-Y +!
 ;
