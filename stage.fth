@@ -44,7 +44,7 @@ BANK!
 0x1D00 CONSTANT STAGE-BACKDROP-COLOR
 
 0x0A80 CONSTANT PLAYER-START-X
-0x0A80 CONSTANT PLAYER-START-Y
+0x0880 CONSTANT PLAYER-START-Y
 
 12 CONSTANT RUN-SPEED
 0x2000 CONSTANT DASH-SPEED
@@ -425,7 +425,7 @@ DROP
     2*
   ELSE
     \ Opposite, halve.
-    2/
+    2/TZ
   THEN
 ;
 
@@ -448,29 +448,35 @@ DROP
   THEN
 
   GET-JOY-DIR-ORTHO
-  2DUP 
+  \ 2DUP 
   RUN-SPEED PLAYER-DASH @ HIBYTE + SCALE-DIR
   SCALE-FOR-SLOPE
   PLAYER-ISO-Y +!
   PLAYER-ISO-X +!
-  RUN-SPEED 2/ 2/ SCALE-DIR
+  (
+  RUN-SPEED 2/TZ 2/TZ SCALE-DIR
   BOX-ISO-Y +!
   BOX-ISO-X +!
+  )
 ;
 
+\ This rounds towards 0, which means that the INT-PART of -0.2 is 0.
 : 8.8-INT-PART ( 8.8-fixed -- int-part )
-  \ Using 2/ a bunch here because it preserves sign while HIBYTE does not.
-  2/ 2/ 2/ 2/ 2/ 2/ 2/ 2/ 
+  256/TZ
 ;
 
 \ The amount of acceleration based on how far away the top box is.
 : ACCEL-FROM-DISTANCE ( iso-distance -- acceleration )
-  2/ 2/ 2/ 2/
+  \ NOTE: 2/ rounds towards -INF, not zero.
+  2/TZ 2/TZ 2/TZ 2/TZ 2/TZ
+  \ 2/ 2/ 2/ 2/ 2/
 ;
 
 : UPDATE-BOX
   BOX-ISO-X @ PLAYER-ISO-X @ - ACCEL-FROM-DISTANCE BOX-VEL-X +!
   BOX-ISO-Y @ PLAYER-ISO-Y @ - ACCEL-FROM-DISTANCE BOX-VEL-Y +!
+  BOX-VEL-X @ DUP 256/TZ - BOX-VEL-X !
+  BOX-VEL-Y @ DUP 256/TZ - BOX-VEL-Y !
   BOX-VEL-X @ 8.8-INT-PART BOX-ISO-X +!
   BOX-VEL-Y @ 8.8-INT-PART BOX-ISO-Y +!
 ;
