@@ -527,12 +527,17 @@ DROP
 : STAGE-NMI
   STAGE-NMI-STATE @ CASE
     0 OF
+      FADE-OUT IF
+        1 STAGE-NMI-STATE +!
+      THEN
+    ENDOF
+    1 OF
       STAGE-BACKDROP-COLOR SET-BACKDROP-COLOR
       COPY-SPRITES
       COPY-SPRITES-PALETTE
       1 STAGE-NMI-STATE +!
     ENDOF
-    1 OF
+    2 OF
       \ TODO: This doesn't actually have to be in NMI since we're operating on
       \ the shadow OAM
       TRUE PLAYER-TOP-OAM-OBJECT OAM-OBJECT-LARGE!
@@ -556,8 +561,15 @@ DROP
 
       1 STAGE-NMI-STATE +!
     ENDOF
-    2 OF
-      BANK2-CALL MAP-NMI
+    3 OF
+      BANK2-CALL MAP-NMI IF
+        1 STAGE-NMI-STATE +!
+      THEN
+    ENDOF
+    4 OF
+      FADE-IN DROP
+
+      BANK2-CALL MAP-NMI DROP
 
       OAM-TILE-BASE 0x2101 C!
 

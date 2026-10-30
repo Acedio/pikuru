@@ -451,7 +451,7 @@ DROP
   COPY-CGRAM-PALETTE-LONG
 ;
 
-: MAP-NMI
+: MAP-NMI ( -- loaded )
   \ Enable BG1. In lowram, so fine to write from separate bank.
   \ TODO: Maybe creating a vram-lowram.fth file that we can include in other
   \ banks to allow for writing the lowram CREATE vars?
@@ -484,6 +484,7 @@ DROP
         ROW-COPY-DMA
         FALSE ROW-COPY-NMI-READY !
       THEN
+      TRUE
     ENDOF
     \ TODO: The tile loading should just be one NMI state that increments a
     \ sub-state integer.
@@ -492,34 +493,42 @@ DROP
 
       TEST-TILES 0 + 0x0400 0x1000 TILE-DMA
       MAP-NMI-STATE-TILES-2 MAP-NMI-STATE !
+      FALSE
     ENDOF
     MAP-NMI-STATE-TILES-2 OF
       TEST-TILES 0x0400 + 0x0400 0x1200 TILE-DMA
       MAP-NMI-STATE-TILES-3 MAP-NMI-STATE !
+      FALSE
     ENDOF
     MAP-NMI-STATE-TILES-3 OF
       TEST-TILES 0x0800 + 0x0400 0x1400 TILE-DMA
       MAP-NMI-STATE-TILES-4 MAP-NMI-STATE !
+      FALSE
     ENDOF
     MAP-NMI-STATE-TILES-4 OF
       TEST-TILES 0x0C00 + 0x0400 0x1600 TILE-DMA
       MAP-NMI-STATE-TILES-5 MAP-NMI-STATE !
+      FALSE
     ENDOF
     MAP-NMI-STATE-TILES-5 OF
       TEST-TILES 0x1000 + 0x0400 0x1800 TILE-DMA
       MAP-NMI-STATE-TILES-6 MAP-NMI-STATE !
+      FALSE
     ENDOF
     MAP-NMI-STATE-TILES-6 OF
       TEST-TILES 0x1400 + 0x0400 0x1A00 TILE-DMA
       MAP-NMI-STATE-TILES-7 MAP-NMI-STATE !
+      FALSE
     ENDOF
     MAP-NMI-STATE-TILES-7 OF
       TEST-TILES 0x1800 + 0x0400 0x1C00 TILE-DMA
       MAP-NMI-STATE-TILES-8 MAP-NMI-STATE !
+      FALSE
     ENDOF
     MAP-NMI-STATE-TILES-8 OF
       TEST-TILES 0x1C00 + 0x0400 0x1E00 TILE-DMA
       MAP-NMI-STATE-MAPPING MAP-NMI-STATE !
+      FALSE
     ENDOF
   ENDCASE
 ;
