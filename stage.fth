@@ -291,8 +291,8 @@ DROP
 : DRAW-BOXES
   BOX-ISO-X @ BOX-ISO-Y @
   PLAYER-ISO-X @ PLAYER-ISO-Y @ COORD-SUB
-  2/ 2/ BOX-ISO-DELTA-Y !
-  2/ 2/ BOX-ISO-DELTA-X !
+  2/TZ 2/TZ BOX-ISO-DELTA-Y !
+  2/TZ 2/TZ BOX-ISO-DELTA-X !
 
   PLAYER-ISO-X @ 0x080 + TEMP-X !
   PLAYER-ISO-Y @ 0x040 + TEMP-Y !
@@ -345,7 +345,7 @@ DROP
 ;
 
 : 3/4 ( i -- 3/4*i )
-  2/ DUP 2/ +
+  2/TZ DUP 2/TZ +
 ;
 
 : GET-JOY-DIR-ORTHO ( -- xsign ysign )
