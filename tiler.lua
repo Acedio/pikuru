@@ -31,18 +31,45 @@ function Grid:newWithDimensions(w, h)
   }
 end
 
-function Grid:fromCsv(csv_text)
+function load_level_csv(csv_text)
   local array = {}
-  for num_string in string.gmatch(csv_text, "(%-?%d+)") do
-    local num = tonumber(num_string)
-    assert(num, "is not a number: " .. num_string)
+  local start = nil
+  local finish = nil
+  local cell_i = 0
+  for cell in string.gmatch(csv_text, "(%-?%w+)") do
+    local num = nil
+    -- Special character cells assume the height value to their right.
+    if cell == 'S' then
+      assert(not start)
+      local x = (cell_i & 63) // 2
+      local y = (cell_i // 64) // 2
+      start = v2.v2(x,y)
+      num = array[#array]
+    elseif cell == 'F' then
+      assert(not finish)
+      local x = (cell_i & 63) // 2
+      local y = (cell_i // 64) // 2
+      finish = v2.v2(x,y)
+      num = array[#array]
+    else
+      num = tonumber(cell)
+    end
+    assert(num, "is not a number: " .. cell)
     table.insert(array, num)
+    cell_i = cell_i + 1
   end
   assert(#array == 64*64)
-  return self:new{
-    width = 64,
-    height = 64,
-    array = array,
+  assert(start)
+  assert(finish)
+
+  return {
+    grid = Grid:new{
+      width = 64,
+      height = 64,
+      array = array,
+    },
+    start = start,
+    finish = finish,
   }
 end
 
@@ -228,14 +255,18 @@ function write_tiles(tiles, file)
   end
 end
 
+function word_to_char(word)
+  local word_low = word & 0xFF
+  local word_high = word >> 8
+  return string.char(word_low, word_high)
+end
+
 function write_tilemap16(tilemap, file)
   assert(tilemap.width == 64, "Tilemap must be 64 wide.")
   for y=0,tilemap.height-1 do
     for x=0,tilemap.width-1 do
-      local tile = tilemap:get(x,y)
-      local tile_low = tile & 0xFF
-      local tile_high = tile >> 8
-      file:write(string.char(tile_low), string.char(TILEMAP_PALETTE << 2 | tile_high))
+      local tile = tilemap:get(x,y) | (TILEMAP_PALETTE << 10)
+      file:write(word_to_char(tile))
     end
   end
 end
@@ -345,6 +376,13 @@ function write_heightmap(grid, file)
       end
     end
   end
+end
+
+function write_metadata(level, file)
+  file:write(word_to_char(level.start.x))
+  file:write(word_to_char(level.start.y))
+  file:write(word_to_char(level.finish.x))
+  file:write(word_to_char(level.finish.y))
 end
 
 -- For when W > H.
@@ -596,18 +634,14 @@ function draw_iso_heightmap(grid)
   return screen
 end
 
-local X = -1
-local S = -2
-local F = -3
-
 local csv_file = assert(io.open(input_csv, "r"))
 local csv_text = csv_file:read("*all")
 csv_file:close()
 
-
 -- z values of the corners of each tile (so each tile is 4 values).
-local grid = Grid:fromCsv(csv_text)
-local img = draw_iso_heightmap(grid)
+local level = load_level_csv(csv_text)
+assert(#level.grid.array == 64*64)
+local img = draw_iso_heightmap(level.grid)
 
 local pgm_file = io.open(name_prefix .. ".pgm", "w")
 assert(pgm_file)
@@ -640,5 +674,10 @@ pal_file:close()
 
 local heightmap_file = io.open(name_prefix .. ".map.heightmap.out", "wb")
 assert(heightmap_file)
-write_heightmap(grid, heightmap_file)
+write_heightmap(level.grid, heightmap_file)
 heightmap_file:close()
+
+local metadata_file = io.open(name_prefix .. ".map.metadata.out", "wb")
+assert(metadata_file)
+write_metadata(level, metadata_file)
+metadata_file:close()
