@@ -7,6 +7,7 @@ REQUIRE build/title.map.fth
 REQUIRE joypad.fth
 REQUIRE sin-lut.fth
 REQUIRE scrolling-bg.fth
+REQUIRE text-overlay.fth
 
 BANK@
 LOWRAM BANK!
@@ -78,11 +79,16 @@ BANK!
       THEN
     ENDOF
     5 OF
+      TEXT-OVERLAY-NMI IF
+        1 TITLE-NMI-STATE +!
+      THEN
+    ENDOF
+    6 OF
       TITLE-COPY-BG1
 
       1 TITLE-NMI-STATE +!
     ENDOF
-    6 OF
+    7 OF
       FADE-IN DROP
 
       \ Enable layer 1 and turn off OBJ.
@@ -102,6 +108,7 @@ BANK!
       HIBYTE 0x210E C!
 
       SCROLLING-BG-NMI DROP
+      TEXT-OVERLAY-NMI DROP
     ENDOF
   ENDCASE
 ;
@@ -112,6 +119,8 @@ BANK!
   TITLE-LOOP TITLE-STATE !
 
   SCROLLING-BG-INIT
+
+  TEXT-OVERLAY-INIT
 ;
 
 : 2^12/
@@ -132,6 +141,8 @@ BANK!
   1 TITLE-TICKS +!
 
   SCROLLING-BG-MAIN
+
+  TEXT-OVERLAY-MAIN
 
   TITLE-STATE @ CASE
     TITLE-LOOP OF
