@@ -3,8 +3,7 @@ REQUIRE std.fth
 REQUIRE audio.fth
 REQUIRE cgram.fth
 REQUIRE vram.fth
-REQUIRE build/title.spr.fth
-REQUIRE build/title.p1.map.fth
+REQUIRE build/title.map.fth
 REQUIRE joypad.fth
 REQUIRE sin-lut.fth
 REQUIRE stars.fth
@@ -45,7 +44,7 @@ BANK!
 ;
 
 : TITLE-COPY-BG1
-  TITLE-MAP TITLE-BANK
+  TITLE-MAP TITLE-MAP-BANK
   TITLE-BG-MAP-BASE MAP-BASE-TO-VRAM-WORD
   COPY-BG-TO-VRAM
 ;
@@ -91,7 +90,8 @@ BANK!
 
       TITLE-BG-TILE-BASE BG1-TILE-BASE!
       TITLE-BG-MAP-BASE 0x2107 C!
-      0x11   0x11   BG-MODE           MASK!
+      \ 8x8 tiles
+      0x01   0x11   BG-MODE           MASK!
 
       \ Zero X shift for BG1
       0x00 0x210D C!
