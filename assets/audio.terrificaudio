@@ -35,38 +35,6 @@
       "envelope": "adsr 6 2 2 15"
     },
     {
-      "name": "meow1",
-      "source": {
-        "type": "wav",
-        "source": "meow1.wav",
-        "evaluator": "default"
-      },
-      "ignore_gaussian_overflow": false,
-      "pitches": {
-        "type": "octave",
-        "frequency": 500.0,
-        "first_octave": 4,
-        "last_octave": 4
-      },
-      "envelope": "gain F127"
-    },
-    {
-      "name": "meow2",
-      "source": {
-        "type": "wav",
-        "source": "meow2.wav",
-        "evaluator": "default"
-      },
-      "ignore_gaussian_overflow": false,
-      "pitches": {
-        "type": "octave",
-        "frequency": 500.0,
-        "first_octave": 4,
-        "last_octave": 4
-      },
-      "envelope": "gain F127"
-    },
-    {
       "name": "hat",
       "source": {
         "type": "brr",
@@ -133,9 +101,7 @@
   },
   "high_priority_sound_effects": [],
   "sound_effects": [
-    "menu_select",
-    "meow1",
-    "meow2"
+    "menu_select"
   ],
   "low_priority_sound_effects": [],
   "sound_effect_file": "sound_effects.txt",
