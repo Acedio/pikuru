@@ -6,7 +6,7 @@ REQUIRE vram.fth
 REQUIRE build/title.map.fth
 REQUIRE joypad.fth
 REQUIRE sin-lut.fth
-REQUIRE stars.fth
+REQUIRE scrolling-bg.fth
 
 BANK@
 LOWRAM BANK!
@@ -73,7 +73,7 @@ BANK!
       1 TITLE-NMI-STATE +!
     ENDOF
     4 OF
-      STARS-NMI IF
+      SCROLLING-BG-NMI IF
         1 TITLE-NMI-STATE +!
       THEN
     ENDOF
@@ -101,7 +101,7 @@ BANK!
       DUP 0x210E C!
       HIBYTE 0x210E C!
 
-      STARS-NMI DROP
+      SCROLLING-BG-NMI DROP
     ENDOF
   ENDCASE
 ;
@@ -111,7 +111,7 @@ BANK!
   0 TITLE-TICKS !
   TITLE-LOOP TITLE-STATE !
 
-  STARS-INIT
+  SCROLLING-BG-INIT
 ;
 
 : 2^12/
@@ -131,7 +131,7 @@ BANK!
 : TITLE-MAIN
   1 TITLE-TICKS +!
 
-  STARS-MAIN
+  SCROLLING-BG-MAIN
 
   TITLE-STATE @ CASE
     TITLE-LOOP OF

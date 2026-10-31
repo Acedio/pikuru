@@ -4,8 +4,8 @@ REQUIRE audio.fth
 REQUIRE font.fth
 REQUIRE cgram.fth
 REQUIRE joypad.fth
+REQUIRE scrolling-bg.fth
 REQUIRE snes-std.fth
-REQUIRE stars.fth
 REQUIRE steps.fth
 REQUIRE vram.fth
 
@@ -91,7 +91,7 @@ BANK!
     ENDOF
     4 OF
       FADE-IN DROP
-      STARS-NMI DROP
+      SCROLLING-BG-NMI DROP
     ENDOF
   ENDCASE
 ;
@@ -123,14 +123,14 @@ BANK!
 
   STEPS-STRING BG1-SHADOW-TILEMAP 26 11 TILEMAP-XY CELLS + COPY-STRING-TO-TILES
 
-  STARS-INIT
+  SCROLLING-BG-INIT
 ;
 
 \ Returns TRUE when done.
 : END-MAIN
   1 END-TICKS +!
 
-  STARS-MAIN
+  SCROLLING-BG-MAIN
 
   JOY1-PRESSED @ BUTTON-START AND 0<> IF
     AUDIO-PLAY-CHIME

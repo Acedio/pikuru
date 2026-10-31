@@ -38,16 +38,16 @@ $(BUILD)/%.out.s: tests/%.fth tests/test-util.fth tests/snes-test-util.fth cgram
 
 ISOMAPS=level1 level2
 ISOMAPS_FTH=$(foreach name,$(ISOMAPS),$(BUILD)/$(name).map.fth)
-4BMAPS=title
+4BMAPS=title tiled-bg
 4BMAPS_FTH=$(foreach name,$(4BMAPS),$(BUILD)/$(name).map.fth)
-4BTILES=maptiles sprites stars pickles
+4BTILES=maptiles sprites pickles
 4BTILES_FTH=$(foreach name,$(4BTILES),$(BUILD)/$(name).spr.fth)
 2BTILES=farstars
 2BTILES_FTH=$(foreach name,$(2BTILES),$(BUILD)/$(name).spr2b.fth)
 MAPS=starfield.p2 farstars.p1 title.p1
 MAPS_FTH=$(foreach name,$(MAPS),$(BUILD)/$(name).map.fth)
 
-$(BUILD)/game.out.s: joypad.fth sin-lut.fth oam.fth vram.fth cgram.fth wram.fth $(ISOMAPS_FTH) $(4BMAPS_FTH) $(4BTILES_FTH) $(2BTILES_FTH) $(MAPS_FTH) font.fth audio.fth stars.fth steps.fth stage.fth title.fth end.fth map.fth
+$(BUILD)/game.out.s: joypad.fth sin-lut.fth oam.fth vram.fth cgram.fth wram.fth $(ISOMAPS_FTH) $(4BMAPS_FTH) $(4BTILES_FTH) $(2BTILES_FTH) $(MAPS_FTH) font.fth audio.fth scrolling-bg.fth steps.fth stage.fth title.fth end.fth map.fth
 
 # TODO: Currently unused, the game itself doesn't have any tests.
 tests: $(BUILD)/tests.smc $(BUILD)/tests.mlb
