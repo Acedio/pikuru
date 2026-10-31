@@ -40,20 +40,13 @@ ISOMAPS=level1 level2
 ISOMAPS_FTH=$(foreach name,$(ISOMAPS),$(BUILD)/$(name).map.fth)
 4BMAPS=title tiled-bg
 4BMAPS_FTH=$(foreach name,$(4BMAPS),$(BUILD)/$(name).map.fth)
-4BTILES=maptiles sprites pickles
-4BTILES_FTH=$(foreach name,$(4BTILES),$(BUILD)/$(name).spr.fth)
-2BTILES=farstars
-2BTILES_FTH=$(foreach name,$(2BTILES),$(BUILD)/$(name).spr2b.fth)
-MAPS=starfield.p2 farstars.p1 title.p1
-MAPS_FTH=$(foreach name,$(MAPS),$(BUILD)/$(name).map.fth)
+4BSPRITES=pickles
+4BSPRITES_FTH=$(foreach name,$(4BSPRITES),$(BUILD)/$(name).spr.fth)
 
-$(BUILD)/game.out.s: joypad.fth sin-lut.fth oam.fth vram.fth cgram.fth wram.fth $(ISOMAPS_FTH) $(4BMAPS_FTH) $(4BTILES_FTH) $(2BTILES_FTH) $(MAPS_FTH) font.fth audio.fth scrolling-bg.fth steps.fth text-overlay.fth stage.fth title.fth end.fth map.fth
+$(BUILD)/game.out.s: joypad.fth sin-lut.fth oam.fth vram.fth cgram.fth wram.fth $(ISOMAPS_FTH) $(4BMAPS_FTH) $(4BSPRITES_FTH) font.fth audio.fth scrolling-bg.fth steps.fth text-overlay.fth stage.fth title.fth end.fth map.fth
 
 # TODO: Currently unused, the game itself doesn't have any tests.
 tests: $(BUILD)/tests.smc $(BUILD)/tests.mlb
-
-$(ASSETS)/farstars.png: $(ASSETS)/stars.png
-	cp $< $@
 
 $(ASSETS)/audio.terrificaudio: $(ASSETS)/song.mml $(ASSETS)/FM_Harp.brr $(ASSETS)/sound_effects.txt
 
@@ -107,17 +100,6 @@ $(BUILD)/%.map.fth: $(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.m
 
 $(BUILD)/%.map.csv: $(ASSETS)/%.tmx | build
 	xvfb-run -a tiled --export-map csv $< $@
-
-# These have .pX in their filename to indicate which palette they use.
-# TODO: This kind of configuration shouldn't be in the makefile :P
-$(BUILD)/%.p0.map.fth: $(BUILD)/%.map.csv | build
-	./csv-to-tilemap.sh $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $< 0 BANK1_UNSIZED > $@
-
-$(BUILD)/%.p1.map.fth: $(BUILD)/%.map.csv | build
-	./csv-to-tilemap.sh $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $< 1024 BANK1_UNSIZED > $@
-
-$(BUILD)/%.p2.map.fth: $(BUILD)/%.map.csv | build
-	./csv-to-tilemap.sh $(shell echo '$*' | tr '[:lower:]' '[:upper:]') $< 2048 BANK1_UNSIZED > $@
 
 clean:
 	$(RM) dataspace.dump link.mapfile
