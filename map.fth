@@ -1,40 +1,11 @@
 REQUIRE std.fth
 
 REQUIRE snes-std.fth
-
-BANK@
-CBANK@
-2 BANK!
-2 CBANK!
-INCLUDE std.fth
-INCLUDE snes-std.fth
-INCLUDE cgram.fth
-
-( width height -- )
-: COMPILE-MAP
-  * CELLS
-  HERE + >R
-  BEGIN
-    0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 1 , 0 , 1 , 
-    0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 
-    1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 
-    1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 
-
-    1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 
-    1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 
-    1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 
-    1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 0 , 
-  HERE R@ >= UNTIL
-  R> DROP
-;
+REQUIRE cgram.fth
 
 \ Width should be a multiple of 2.
 64 CONSTANT MAP-WIDTH
 64 CONSTANT MAP-HEIGHT
-
-HERE \ Store HERE so we can create the label for it later.
-MAP-WIDTH MAP-HEIGHT COMPILE-MAP
-CONSTANT MAP-TILES
 
 \ 32 * 32 * 2 = 2048 bytes in 7F to store a VRAM tilemap.
 \ TODO: Actually this can be smaller since we should only need 14 + 4ish rows.
@@ -120,7 +91,7 @@ BANK!
 \ The column must not exceed the height of the tilemap.
 : FILL-COLUMN-COPY-BUFFER ( col rowstart -- )
   BANK@ >R
-  PHK BANK! \ Use the map in the current bank.
+  MAP-MAP-BANK @ BANK! \ Use the map bank.
 
   TUCK \ Save the starting row to determine where to start in COLUMN-COPY-BUFFER
   64* + CELLS \ Byte offset into the map
@@ -151,7 +122,7 @@ BANK!
 
   \ Number of copies
   VRAM-TILEMAP-HEIGHT CELLS 0x4305 !
-  \ Page (LOWRAM so doesn't matter much)
+  \ Page (LOWRAM so anything other than 7F)
   0 0x4304 C!
   \ Transfer from
   COLUMN-COPY-BUFFER 0x4302 !
@@ -188,8 +159,8 @@ BANK!
 
   \ Number of copies
   CELLS 0x4305 !
-  \ Page (compiled to the current page)
-  PHK 0x4304 C!
+  \ Page
+  MAP-MAP-BANK @ 0x4304 C!
   \ Transfer from
   ROW-COPY-SRC-ADDR @ 0x4302 !
   \ Copy to addr (2118), then addr+1 (2119).
@@ -233,6 +204,9 @@ BANK!
 
 \ Copies a screenfull of tiles to the scratch buffer in 7F-TILEMAP-SCRATCH.
 : FULL-COPY ( tx ty -- )
+  BANK@ >R
+  MAP-MAP-BANK @ BANK! \ Use the map bank.
+
   \ Calculate the starting addr for rom
   2DUP 64* + CELLS MAP-MAP-ADDR @ + -ROT \ rom-addr tx ty 
   \ Calculate the starting addr for vram (actually our wram scratch)
@@ -252,10 +226,12 @@ BANK!
   ROW-COPY-TILES R@ - CELLS + SWAP
   \ Kinda wasteful to wait to check, but bail here if needed.
   R> DUP 0= IF
-    DROP 2DROP
+    DROP 2DROP R> BANK!
   ;THEN
   \ Copy the second count
   COPY-SUBROWS
+
+  R> BANK!
 ;
 
 : FULL-COPY-DMA 
@@ -263,8 +239,8 @@ BANK!
   \ - increment by 1.
   0x80 0x2115 C!
 
-  \ Page (compiled to the current page)
-  PHK 0x4304 C!
+  \ Page
+  MAP-MAP-BANK @ 0x4304 C!
   \ Copy to addr (2118), then addr+1 (2119).
   0x1 0x4300 C!
   \ Copy to VRAM reg
@@ -275,7 +251,7 @@ BANK!
 
   \ Number of copies
   [ 32 32 * CELLS COMPILE-LIT ] 0x4305 !
-  \ Page
+  \ Page (always the same)
   0x7F 0x4304 C!
   \ Transfer from
   7F-TILEMAP-SCRATCH 0x4302 !
@@ -297,8 +273,8 @@ BANK!
 
   \ Number of copies
   0x4305 !
-  \ Page (compiled to the current page)
-  PHK 0x4304 C!
+  \ Page
+  MAP-TILES-BANK @ 0x4304 C!
   \ Transfer from
   0x4302 !
   \ Copy to addr (2118), then addr+1 (2119). No increment.
@@ -321,11 +297,16 @@ BANK!
 
 \ Does not support wrapping.
 : COPY-SUBROW ( col row -- )
+  BANK@ >R
+  MAP-MAP-BANK @ BANK! \ Use the map bank.
+
   OVER VRAM-TILEMAP-WIDTH-MASK AND
   OVER VRAM-TILEMAP-HEIGHT-MASK AND 32* + ROW-COPY-VMADDR !
   64* + CELLS MAP-MAP-ADDR @ + ROW-COPY-SRC-ADDR !
   \ 2DROP MAP-TILES ROW-COPY-SRC-ADDR !
   TRUE ROW-COPY-NMI-READY !
+
+  R> BANK!
 ;
 
 BANK@
@@ -357,8 +338,6 @@ BANK!
              map-addr   map-bank   map-bytes
              tiles-addr tiles-bank tiles-bytes
              pal-addr   pal-bank   pal-bytes -- )
-  BANK@ PHK BANK! >R
-
   MAP-PAL-BYTES !
   MAP-PAL-BANK !
   MAP-PAL-ADDR !
@@ -383,8 +362,6 @@ BANK!
   Y-SCROLL @ BORDER-MARGIN LSR - Y-BORDER !
 
   FULL-REDRAW
-
-  R> BANK!
 ;
 
 : UPDATE-X-SCROLL
@@ -435,14 +412,10 @@ BANK!
 ;
 
 : MAP-MAIN ( camera-x camera-y -- )
-  BANK@ PHK BANK! >R
-
   Y-SCROLL !
   X-SCROLL !
 
   UPDATE-SCROLL
-
-  R> BANK!
 ;
 
 : SET-BG1-X-SCROLL ( 10-bit-val -- )
@@ -470,12 +443,12 @@ BANK!
   \ Enable BG1. In lowram, so fine to write from separate bank.
   \ TODO: Maybe creating a vram-lowram.fth file that we can include in other
   \ banks to allow for writing the lowram CREATE vars?
-  0x01 0x01 BANK0-CALL BG-LAYER-ENABLE MASK!
+  0x01 0x01 BG-LAYER-ENABLE MASK!
 
-  0x01 BANK0-CALL BG1-TILE-BASE!
+  0x01 BG1-TILE-BASE!
   \ Tilemap at address 0, 1x1 tilemap.
   0 0x2107 C!
-  0x11 0x11 BANK0-CALL BG-MODE MASK!
+  0x11 0x11 BG-MODE MASK!
 
   \ Zero X shift for BG1
   0x00 0x210D C!
@@ -520,6 +493,3 @@ BANK!
     ENDOF
   ENDCASE
 ;
-
-CBANK!
-BANK!

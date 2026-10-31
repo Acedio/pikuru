@@ -36,7 +36,7 @@ $(BUILD)/%.out.s: %.fth | build
 $(BUILD)/%.out.s: tests/%.fth tests/test-util.fth tests/snes-test-util.fth cgram.fth oam.fth vram.fth | build 
 	$(SNESFORTH) $< $@
 
-ISOMAPS=test
+ISOMAPS=level1 level2
 ISOMAPS_FTH=$(foreach name,$(ISOMAPS),$(BUILD)/$(name).map.fth)
 4BTILES=maptiles sprites stars title pickles
 4BTILES_FTH=$(foreach name,$(4BTILES),$(BUILD)/$(name).spr.fth)
@@ -67,24 +67,24 @@ JUSTCOPY=tad-audio.inc forth/preamble.inc
 $(foreach file,$(JUSTCOPY),$(BUILD)/$(file)): $(JUSTCOPY)
 	cp $(JUSTCOPY) $(BUILD)
 
-$(BUILD)/test.map.pal.out $(BUILD)/test.map.tiles.out $(BUILD)/test.map.map.out $(BUILD)/test.map.heightmap.out $(BUILD)/test.map.metadata.out: tiler.lua level1.csv | build
-	./tiler.lua level1.csv $(BUILD)/test
+$(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out $(BUILD)/%.map.heightmap.out $(BUILD)/%.map.metadata.out: tiler.lua %.csv | build
+	./tiler.lua $*.csv $(BUILD)/$*
 
 $(BUILD)/%.map.fth: $(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out $(BUILD)/%.map.heightmap.out $(BUILD)/%.map.metadata.out | build
 	NAME=$(shell echo '$*' | tr '[:lower:]' '[:upper:]'); \
-	./bin-to-forth.lua "$$NAME-MAP" $(BUILD)/$*.map.map.out BANK2_UNSIZED > $@; \
-	./bin-to-forth.lua "$$NAME-TILES" $(BUILD)/$*.map.tiles.out BANK2_UNSIZED >> $@; \
-	./bin-to-forth.lua "$$NAME-PAL" $(BUILD)/$*.map.pal.out BANK2_UNSIZED >> $@; \
-	./bin-to-forth.lua "$$NAME-HEIGHTMAP" $(BUILD)/$*.map.heightmap.out BANK2_UNSIZED >> $@; \
-	./bin-to-forth.lua "$$NAME-METADATA" $(BUILD)/$*.map.metadata.out BANK2_UNSIZED >> $@
+	./bin-to-forth.lua "$$NAME-MAP" $(BUILD)/$*.map.map.out BANK3_UNSIZED > $@; \
+	./bin-to-forth.lua "$$NAME-TILES" $(BUILD)/$*.map.tiles.out BANK3_UNSIZED >> $@; \
+	./bin-to-forth.lua "$$NAME-PAL" $(BUILD)/$*.map.pal.out BANK3_UNSIZED >> $@; \
+	./bin-to-forth.lua "$$NAME-HEIGHTMAP" $(BUILD)/$*.map.heightmap.out BANK3_UNSIZED >> $@; \
+	./bin-to-forth.lua "$$NAME-METADATA" $(BUILD)/$*.map.metadata.out BANK3_UNSIZED >> $@
 
 $(BUILD)/%.spr.pal.out $(BUILD)/%.spr.tiles.out: $(SPRITES)/%.png | build
 	superfamiconv -i $^ -p $(BUILD)/$*.spr.pal.out -t $(BUILD)/$*.spr.tiles.out -S -B 4
 
 $(BUILD)/%.spr.fth: $(BUILD)/%.spr.pal.out $(BUILD)/%.spr.tiles.out | build
 	NAME=$(shell echo '$*' | tr '[:lower:]' '[:upper:]'); \
-	./bin-to-forth.lua "$$NAME-TILES" $(BUILD)/$*.spr.tiles.out BANK3_UNSIZED > $@; \
-	./bin-to-forth.lua "$$NAME-PAL" $(BUILD)/$*.spr.pal.out BANK3_UNSIZED >> $@
+	./bin-to-forth.lua "$$NAME-TILES" $(BUILD)/$*.spr.tiles.out BANK2_UNSIZED > $@; \
+	./bin-to-forth.lua "$$NAME-PAL" $(BUILD)/$*.spr.pal.out BANK2_UNSIZED >> $@
 
 $(BUILD)/%.spr2b.pal.out $(BUILD)/%.spr2b.tiles.out: $(SPRITES)/%.png | build
 	superfamiconv -i $^ -p $(BUILD)/$*.spr2b.pal.out -t $(BUILD)/$*.spr2b.tiles.out -S -B 2
