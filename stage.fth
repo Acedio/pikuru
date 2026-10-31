@@ -546,13 +546,23 @@ DROP
   \ 2DUP 
   RUN-SPEED PLAYER-DASH @ HIBYTE + SCALE-DIR
   SCALE-FOR-SLOPE
-  PLAYER-ISO-Y +!
-  PLAYER-ISO-X +!
+  PLAYER-ISO-Y @ + TEMP-Y !
+  PLAYER-ISO-X @ + TEMP-X !
   (
   RUN-SPEED 2/TZ 2/TZ SCALE-DIR
   TOP-BOX-ISO-Y +!
   TOP-BOX-ISO-X +!
   )
+
+  TEMP-X @ TEMP-Y @ ISO-Z
+
+  DUP 0< IF
+    DROP
+  ELSE
+    TEMP-X @ PLAYER-ISO-X !
+    TEMP-Y @ PLAYER-ISO-Y !
+    PLAYER-ISO-Z !
+  THEN
 ;
 
 \ This rounds towards 0, which means that the INT-PART of -0.2 is 0.
@@ -731,14 +741,6 @@ DROP
 
 : HANDLE-WALKING
   HANDLE-JOY
-
-  PLAYER-ISO-X @ PLAYER-ISO-Y @ ISO-Z
-
-  DUP 0< IF
-    DROP RESTART-LEVEL
-  ELSE
-    PLAYER-ISO-Z !
-  THEN
 
   FINISHED? IF
     1 STAGE-INDEX +!
