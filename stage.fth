@@ -580,7 +580,7 @@ DROP
       COPY-OAM
 
       \ Enable sprite layer and BG1. Disable the rest.
-      0x11 0x1F BANK0-CALL BG-LAYER-ENABLE MASK!
+      0x11 0x1F BG-LAYER-ENABLE MASK!
     ENDOF
   ENDCASE
 ;
