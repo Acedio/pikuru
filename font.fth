@@ -6,7 +6,7 @@ CODE FONT
   rts
 
 .pushseg
-.segment "BANK2"
+.segment "BANK2_UNSIZED"
 FONT_DATA:
 	; Adapted from Hourglass font from https://damieng.com/zx-origins
 	.byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ;  
