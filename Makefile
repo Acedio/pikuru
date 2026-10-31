@@ -36,7 +36,7 @@ $(BUILD)/%.out.s: %.fth | build
 $(BUILD)/%.out.s: tests/%.fth tests/test-util.fth tests/snes-test-util.fth cgram.fth oam.fth vram.fth | build 
 	$(SNESFORTH) $< $@
 
-ISOMAPS=level1 level2
+ISOMAPS=level1 level2 level3
 ISOMAPS_FTH=$(foreach name,$(ISOMAPS),$(BUILD)/$(name).map.fth)
 4BMAPS=title tiled-bg
 4BMAPS_FTH=$(foreach name,$(4BMAPS),$(BUILD)/$(name).map.fth)
@@ -65,13 +65,13 @@ $(foreach file,$(JUSTCOPY),$(BUILD)/$(file)): $(JUSTCOPY)
 $(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out $(BUILD)/%.map.heightmap.out $(BUILD)/%.map.metadata.out: tiler.lua %.csv | build
 	./tiler.lua $*.csv $(BUILD)/$*
 
-$(BUILD)/%.map.fth: $(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out $(BUILD)/%.map.heightmap.out $(BUILD)/%.map.metadata.out | build
+$(BUILD)/%.map.fth: %.bank $(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out $(BUILD)/%.map.heightmap.out $(BUILD)/%.map.metadata.out | build
 	NAME=$(shell echo '$*' | tr '[:lower:]' '[:upper:]'); \
-	./bin-to-forth.lua "$$NAME-MAP" $(BUILD)/$*.map.map.out BANK3_UNSIZED > $@; \
-	./bin-to-forth.lua "$$NAME-TILES" $(BUILD)/$*.map.tiles.out BANK3_UNSIZED >> $@; \
-	./bin-to-forth.lua "$$NAME-PAL" $(BUILD)/$*.map.pal.out BANK3_UNSIZED >> $@; \
-	./bin-to-forth.lua "$$NAME-HEIGHTMAP" $(BUILD)/$*.map.heightmap.out BANK3_UNSIZED >> $@; \
-	./bin-to-forth.lua "$$NAME-METADATA" $(BUILD)/$*.map.metadata.out BANK3_UNSIZED >> $@
+	./bin-to-forth.lua "$$NAME-MAP" $(BUILD)/$*.map.map.out $$(cat $*.bank) > $@; \
+	./bin-to-forth.lua "$$NAME-TILES" $(BUILD)/$*.map.tiles.out $$(cat $*.bank) >> $@; \
+	./bin-to-forth.lua "$$NAME-PAL" $(BUILD)/$*.map.pal.out $$(cat $*.bank) >> $@; \
+	./bin-to-forth.lua "$$NAME-HEIGHTMAP" $(BUILD)/$*.map.heightmap.out $$(cat $*.bank) >> $@; \
+	./bin-to-forth.lua "$$NAME-METADATA" $(BUILD)/$*.map.metadata.out $$(cat $*.bank) >> $@
 
 $(BUILD)/%.spr.pal.out $(BUILD)/%.spr.tiles.out: $(SPRITES)/%.png | build
 	superfamiconv -i $^ -p $(BUILD)/$*.spr.pal.out -t $(BUILD)/$*.spr.tiles.out -S -B 4
