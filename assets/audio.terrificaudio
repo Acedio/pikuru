@@ -1,47 +1,132 @@
 {
   "_about": {
     "file_type": "Terrific Audio Driver project file",
-    "version": "0.1.1"
+    "version": "0.4.2"
   },
-  "instruments": [
+  "brr_samples": [
     {
       "name": "FM_Harp",
-      "source": "FM_Harp.brr",
-      "freq": 500.0,
-      "loop": "none",
-      "evaluator": "default",
+      "source": {
+        "type": "brr",
+        "source": "FM_Harp.brr"
+      },
       "ignore_gaussian_overflow": false,
-      "first_octave": 1,
-      "last_octave": 5,
-      "envelope": "adsr 12 2 2 15",
-      "comment": null
+      "pitches": {
+        "type": "octave",
+        "frequency": 500.0,
+        "first_octave": 1,
+        "last_octave": 5
+      },
+      "envelope": "adsr 12 2 2 15"
+    },
+    {
+      "name": "string",
+      "source": {
+        "type": "brr",
+        "source": "StringSynthB.brr"
+      },
+      "ignore_gaussian_overflow": false,
+      "pitches": {
+        "type": "octave",
+        "frequency": 500.0,
+        "first_octave": 1,
+        "last_octave": 6
+      },
+      "envelope": "adsr 6 2 2 15"
     },
     {
       "name": "meow1",
-      "source": "meow1.wav",
-      "freq": 500.0,
-      "loop": "none",
-      "evaluator": "default",
+      "source": {
+        "type": "wav",
+        "source": "meow1.wav",
+        "evaluator": "default"
+      },
       "ignore_gaussian_overflow": false,
-      "first_octave": 4,
-      "last_octave": 4,
-      "envelope": "gain F127",
-      "comment": null
+      "pitches": {
+        "type": "octave",
+        "frequency": 500.0,
+        "first_octave": 4,
+        "last_octave": 4
+      },
+      "envelope": "gain F127"
     },
     {
       "name": "meow2",
-      "source": "meow2.wav",
-      "freq": 500.0,
-      "loop": "none",
-      "evaluator": "default",
+      "source": {
+        "type": "wav",
+        "source": "meow2.wav",
+        "evaluator": "default"
+      },
       "ignore_gaussian_overflow": false,
-      "first_octave": 4,
-      "last_octave": 4,
-      "envelope": "gain F127",
-      "comment": null
+      "pitches": {
+        "type": "octave",
+        "frequency": 500.0,
+        "first_octave": 4,
+        "last_octave": 4
+      },
+      "envelope": "gain F127"
+    },
+    {
+      "name": "hat",
+      "source": {
+        "type": "brr",
+        "source": "HatTap.brr"
+      },
+      "ignore_gaussian_overflow": false,
+      "pitches": {
+        "type": "octave",
+        "frequency": 273.4375,
+        "first_octave": 0,
+        "last_octave": 5
+      },
+      "envelope": "adsr 12 2 2 15"
+    },
+    {
+      "name": "flute",
+      "source": {
+        "type": "brr",
+        "source": "Flute1.brr"
+      },
+      "ignore_gaussian_overflow": false,
+      "pitches": {
+        "type": "octave",
+        "frequency": 1500.0,
+        "first_octave": 2,
+        "last_octave": 7
+      },
+      "envelope": "adsr 2 2 7 12"
+    },
+    {
+      "name": "snare",
+      "source": {
+        "type": "brr",
+        "source": "Snare02.brr"
+      },
+      "ignore_gaussian_overflow": false,
+      "pitches": {
+        "type": "octave",
+        "frequency": 406.25,
+        "first_octave": 0,
+        "last_octave": 5
+      },
+      "envelope": "adsr 12 2 2 15"
+    },
+    {
+      "name": "tpt",
+      "source": {
+        "type": "brr",
+        "source": "flug_02.brr"
+      },
+      "ignore_gaussian_overflow": false,
+      "pitches": {
+        "type": "octave",
+        "frequency": 804.6875,
+        "first_octave": 1,
+        "last_octave": 6
+      },
+      "envelope": "adsr 12 2 2 15"
     }
   ],
-  "samples": [],
   "default_sfx_flags": {
     "one_channel": true,
     "interruptible": true

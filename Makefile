@@ -51,7 +51,7 @@ tests: $(BUILD)/tests.smc $(BUILD)/tests.mlb
 $(ASSETS)/audio.terrificaudio: $(ASSETS)/song.mml $(ASSETS)/FM_Harp.brr $(ASSETS)/sound_effects.txt
 
 $(BUILD)/audio.s $(BUILD)/audio.bin: $(ASSETS)/audio.terrificaudio | build
-	tad-compiler ca65-export $< --output-asm $(BUILD)/audio.s --output-bin $(BUILD)/audio.bin --segment BANK1 --lorom
+	tad-compiler ca65-export $< --output-asm $(BUILD)/audio.s --output-bin $(BUILD)/audio.bin --segment BANK5 --lorom
 
 $(BUILD)/audio.inc: $(ASSETS)/audio.terrificaudio | build
 	tad-compiler ca65-enums $< --output $@

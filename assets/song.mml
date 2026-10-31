@@ -1,4 +1,51 @@
+#tempo 157
+#ZenLen 40
+#EchoVolume 20
+#EchoLength 128
+@flute flute adsr 15 4 4 7
+@flug tpt adsr 15 1 1 7
 @harp FM_Harp
+@string string
+@snare snare
+@hat hat
+!r l1. rr rr rr rr rr rr rr rr ; 8 bars
+!r2 l1. rr rr rr rr ; halvsies
+!snare l2.  v3	| crrc | rrcr | rrcr | rcrr
+!hat   l4	v1	|< crr crr crr crr|
 
-A @harp L o4 ceb^ rrre <b>eb^ rrrr ceb^ rrre <b>e>d^< rrb^
-B @harp L o2 c^^^^^^^  <b^^^^^^^>  c^^^^^^^  <b^^^^^^^>
+!s2 o2 l4 v3 | d1. a1.
+
+
+!arp_a  o5 l2 e g
+!arp_b  o4 l2 c e
+!arp_a1 V5 !arp_a V10 !arp_a  V15 !arp_a V20 !arp_a V10 !arp_a V5!arp_a ;v1 !arp_a
+!arp_b1 V5 !arp_b V10 !arp_b  V15 !arp_b V20 !arp_b V10 !arp_b V5!arp_b ;v1 !arp_b
+
+!sa1   o4 l2. v1     _-5| r a ^ ^        | ^ a >c g4a2 |  r a- ^ ^  | ^ ^ ^ ^            | a ^ ^ ^   | ^ ^  b g             | g- ^ ^ ^    | r g r b    |
+!sb1   o3 l2. V10       | r e ^ ^        | ^ e a >e    |  ^ e  g b  | ^ g e f            | d <b g> r | ^ ^ <b g>             | d  ^ ^ ^    | ^ e r g    | 
+!orig  o4 l2. v2       	| v1c v2e v3b ^  | ^ ^ ^ v1e   | <b> e b ^  | ^ r v2c v3e        | b ^ r r   | v2e v1<b> v2e v3>d< | r  v2b ^ ^  | r r r r    | 
+!origb o2 l1. v3  _0 	| c r g.         | >c4. <b4.   | <b r       | g   >c<            | b-  r >g. | b-4. e4.            | <b-  ^      |   g   b+>  |
+
+!sa2   o5 l2. Q3	 _-5| v3a v1a r v3a v1a r v3a v1g  r v3g  v1g  r r r r r             | v3a v1a r v3a v1a r v3a v1a- r v3a- v1a- r r r r r
+!sb2   o4 l2. Q3 	    | v3e v1e r v3e v1e r v3e v1d- r v3d- v1d- r r r r r             | v3g v1g r v3g v1g r v3g v1e  r v3e  v1e  r r r r r
+!new1  o4 l2. v2	    | r v1c v2e v3b  | ^ ^ ^ v1e   | <b> e b ^  | r r v1c v2e        | v3b ^ r r  | v2e v1<b >e v2g   | v3b ^ ^ ^  | v2>c ^ ^ ^   |
+!new1b o2 l1. v3  _0 	| c r g.         | >c4. <b4.   | <b r       | g   >c<            | b-  r >g.  | b-4. e4.          | a   a      |  g   b+>     |
+
+!bridge1 o4 l2. v1  	| d f a b   | >d< b a f | c e- g a  | >c< a g e-    | <b-> d- f g    | b- g f d- | <a-> c- e- g-| c- e- g b- 
+!bridge1b        		| _0!s2     |!s2        |_-2 !s2    | !s2           |_-4  !s2        | !s2       | _-6 !s2   _-5| !s2
+
+!bridge2 o4 l2. v1  	| d f a b   | >d< b a f | c e- g a  | >c< a g e-    | <b-> d- f g    | b- g f d- | <a- b- >c d  | e g- a- b-
+!bridge2b        		| _0!s2     |!s2        |_-2 !s2    | !s2           |_-4  !s2        | !s2       | _-6 !s2   _-5| !s2
+
+!tpt1 o4 l2. Q6     V20  | rc re ra- rb2&>c2<|V25b4V30[>c4<b4]2 V35[>c4<b4]2 V35[>c4<b4]2 V20[>c4<b4]2 V15>c4<b4a4g4f4e4d4 v4 r>c< rb- rg re l4 f+gf+ l2 eg rb rrrrrr
+!flute1 o4 l2. v2     | rrrrrrrr rrrrrrrr                                                                V12 o6 l8rrrrrrr l2.b8>c< rb- rg re l4 f+gf+ l2 eg rb rrrrrr
+
+
+A @harp   p50 !orig  L E          !orig   !new1     !orig    !new1    !bridge1 	 !bridge2      !r                                               !r			      !r2
+B @harp   p64 !origb L E          !origb  !new1b    !origb	 !new1b   !bridge1b  !bridge2b     !r                                               !r			      !r2
+C @flute p45  E o4 l1 v3   !r	L !r      !r        !sa1     !sa1     !r         !sa2          !sa2                                             !sa2		      !r2
+D @string p110 E o4 l1 v3  !r   L !r      !r        !sb1     !sb1     !r         !sb2          !sb2                                             !sb2		      !r2
+E @flug p45    E _0   v2   !r   L !r	  !r	    !r	     !r	      !r         !r @flute _-5 !arp_a1 _-6 !arp_a1 _-7 !arp_a1 _-8 !arp_a1  _0  @flug !tpt1       !r2
+F @flug p110   E _0   v2   !r   L !r	  !r	    !r	     !r	      !r         !r @flug  _0  !arp_b1 _-1 !arp_b1 _-2 !arp_b1 _-3 !arp_b1  _-5 @flute  !flute1   !r2
+G @snare  E 		 !r L !snare
+H @hat    E 		 !r L !hat

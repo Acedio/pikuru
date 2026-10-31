@@ -139,7 +139,7 @@ TAD_MIN_TICK_CLOCK = 64
 
 ;; Terrific Audio Driver IO commands
 ;;
-; MUST match `audio-driver/src/io-commands.wiz`
+; MUST match `audio-driver/src/io-commands.inc`
 .enum TadCommand
     ;; Pause the song and sound effect channels.
     ;; * IO commands will still be executed when the audio-driver is paused.
@@ -178,6 +178,8 @@ TAD_MIN_TICK_CLOCK = 64
     ;; CAUTION: Echo volume is separate from main volume.
     ;; The echo buffer will be unchanged and audible when main-volume is 0.
     ;; This command is not recommended with songs that use echo.
+    ;;
+    ;; CAUTION: The song can change the main volume.
     SET_MAIN_VOLUME = 10
 
     ;; Enables or disables music channels.
@@ -602,7 +604,8 @@ TAD_MIN_TICK_CLOCK = 64
 ;; IN: A >= 1 - load *song data*
 ;;
 ;; OUT: Carry set if input (`A`) was valid
-;; OUT: A:X = far address (only read if carry set)
+;; OUT: A:X = far address - bank byte in A, loword in X.
+;;            (only read if carry set)
 ;; OUT:   Y = data size (only read if carry set)
 ;;
 ;; LIFETIME:
