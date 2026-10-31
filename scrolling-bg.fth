@@ -49,6 +49,11 @@ BANK!
 ( -- done-loading )
 : SCROLLING-BG-NMI
   SCROLLING-BG-NMI-STATE @ CASE
+    \ Happy path first.
+    3 OF
+      SCROLL-STARFIELD
+      TRUE
+    ENDOF
     0 OF
       0x1460 SET-BACKDROP-COLOR
 
@@ -73,8 +78,8 @@ BANK!
 
       0x00 0x20 BG-MODE MASK!
 
-      SCROLL-STARFIELD
-      TRUE
+      1 SCROLLING-BG-NMI-STATE +!
+      FALSE
     ENDOF
   ENDCASE
 ;

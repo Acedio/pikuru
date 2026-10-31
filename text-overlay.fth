@@ -51,6 +51,10 @@ BANK!
 
 : TEXT-OVERLAY-NMI
   TEXT-OVERLAY-NMI-STATE @ CASE
+    \ Happy path first.
+    3 OF
+      TRUE
+    ENDOF
     0 OF
       COPY-FONT
       TEXT-PALETTE
@@ -82,9 +86,6 @@ BANK!
 
       1 TEXT-OVERLAY-NMI-STATE +!
       FALSE
-    ENDOF
-    3 OF
-      TRUE
     ENDOF
   ENDCASE
 ;

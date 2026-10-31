@@ -6,6 +6,8 @@ REQUIRE map.fth
 REQUIRE oam.fth
 REQUIRE snes-std.fth
 REQUIRE vram.fth
+REQUIRE text-overlay.fth
+REQUIRE scrolling-bg.fth
 REQUIRE build/sprites.spr.fth
 REQUIRE build/level1.map.fth
 REQUIRE build/level2.map.fth
@@ -69,12 +71,10 @@ BANK!
 0      CONSTANT ISO-ORIGIN-SCREEN-X
 32 8 * 8 + CONSTANT ISO-ORIGIN-SCREEN-Y
 
-0x1D00 CONSTANT STAGE-BACKDROP-COLOR
-
 0x0400 CONSTANT SPRITES-TILE-COPY-BYTES-PER-NMI
 
 24 CONSTANT RUN-SPEED
-0x2000 CONSTANT DASH-SPEED
+0x3000 CONSTANT DASH-SPEED
 0x0400 CONSTANT DASH-DECAY
 
 0x0160 CONSTANT BOX-HEIGHT
@@ -638,6 +638,23 @@ DROP
 
 : STAGE-NMI
   STAGE-NMI-STATE @ CASE
+    \ Happy path first.
+    7 OF
+      FADE-IN DROP
+
+      MAP-NMI DROP
+      SCROLLING-BG-NMI DROP
+      TEXT-OVERLAY-NMI DROP
+
+      \ Set 16x16 and 64x64 for OAM sizes, and set the tile base.
+      0x80 OAM-TILE-BASE OR 0x2101 C!
+
+      \ TODO: Copying this below STARS-NMI causes issues.
+      COPY-OAM
+
+      \ Enable sprite layer and BG1.
+      0x11 0x11 BG-LAYER-ENABLE MASK!
+    ENDOF
     0 OF
       FADE-OUT IF
         1 STAGE-NMI-STATE +!
@@ -645,16 +662,25 @@ DROP
       0 SPRITES-TILES-LOADED-OFFSET !
     ENDOF
     1 OF
-      COPY-SPRITES IF
+      TEXT-OVERLAY-NMI IF
         1 STAGE-NMI-STATE +!
       THEN
     ENDOF
     2 OF
-      STAGE-BACKDROP-COLOR SET-BACKDROP-COLOR
+      SCROLLING-BG-NMI IF
+        1 STAGE-NMI-STATE +!
+      THEN
+    ENDOF
+    3 OF
+      COPY-SPRITES IF
+        1 STAGE-NMI-STATE +!
+      THEN
+    ENDOF
+    4 OF
       COPY-SPRITES-PALETTE
       1 STAGE-NMI-STATE +!
     ENDOF
-    3 OF
+    5 OF
       \ TODO: This doesn't actually have to be in NMI since we're operating on
       \ the shadow OAM
       FALSE PLAYER-TOP-OAM-OBJECT OAM-OBJECT-LARGE!
@@ -683,24 +709,10 @@ DROP
 
       1 STAGE-NMI-STATE +!
     ENDOF
-    4 OF
+    6 OF
       MAP-NMI IF
         1 STAGE-NMI-STATE +!
       THEN
-    ENDOF
-    5 OF
-      FADE-IN DROP
-
-      MAP-NMI DROP
-
-      \ Set 16x16 and 64x64 for OAM sizes, and set the tile base.
-      0x80 OAM-TILE-BASE OR 0x2101 C!
-
-      \ TODO: Copying this below STARS-NMI causes issues.
-      COPY-OAM
-
-      \ Enable sprite layer and BG1. Disable the rest.
-      0x11 0x1F BG-LAYER-ENABLE MASK!
     ENDOF
   ENDCASE
 ;
@@ -817,6 +829,9 @@ DROP
       MAP-INIT
     ENDOF
   ENDCASE
+
+  SCROLLING-BG-INIT
+  TEXT-OVERLAY-INIT
 ;
 
 : STAGE-INIT
@@ -964,6 +979,10 @@ DROP
   128 - CAMERA-OFFSET-X !
 
   CAMERA-OFFSET-X @ CAMERA-OFFSET-Y @ MAP-MAIN
+
+  SCROLLING-BG-MAIN
+
+  TEXT-OVERLAY-MAIN
 
   DRAW-PLAYER
   
