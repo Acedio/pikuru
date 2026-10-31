@@ -70,12 +70,13 @@ $(foreach file,$(JUSTCOPY),$(BUILD)/$(file)): $(JUSTCOPY)
 $(BUILD)/test.map.pal.out $(BUILD)/test.map.tiles.out $(BUILD)/test.map.map.out $(BUILD)/test.map.heightmap.out $(BUILD)/test.map.metadata.out: tiler.lua level1.csv | build
 	./tiler.lua level1.csv $(BUILD)/test
 
-$(BUILD)/%.map.fth: $(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out $(BUILD)/%.map.heightmap.out | build
+$(BUILD)/%.map.fth: $(BUILD)/%.map.pal.out $(BUILD)/%.map.tiles.out $(BUILD)/%.map.map.out $(BUILD)/%.map.heightmap.out $(BUILD)/%.map.metadata.out | build
 	NAME=$(shell echo '$*' | tr '[:lower:]' '[:upper:]'); \
 	./bin-to-forth.lua "$$NAME-MAP" $(BUILD)/$*.map.map.out BANK2_UNSIZED > $@; \
 	./bin-to-forth.lua "$$NAME-TILES" $(BUILD)/$*.map.tiles.out BANK2_UNSIZED >> $@; \
 	./bin-to-forth.lua "$$NAME-PAL" $(BUILD)/$*.map.pal.out BANK2_UNSIZED >> $@; \
-	./bin-to-forth.lua "$$NAME-HEIGHTMAP" $(BUILD)/$*.map.heightmap.out BANK2_UNSIZED >> $@
+	./bin-to-forth.lua "$$NAME-HEIGHTMAP" $(BUILD)/$*.map.heightmap.out BANK2_UNSIZED >> $@; \
+	./bin-to-forth.lua "$$NAME-METADATA" $(BUILD)/$*.map.metadata.out BANK2_UNSIZED >> $@
 
 $(BUILD)/%.spr.pal.out $(BUILD)/%.spr.tiles.out: $(SPRITES)/%.png | build
 	superfamiconv -i $^ -p $(BUILD)/$*.spr.pal.out -t $(BUILD)/$*.spr.tiles.out -S -B 4
