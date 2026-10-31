@@ -40,7 +40,7 @@ ISOMAPS=level1 level2
 ISOMAPS_FTH=$(foreach name,$(ISOMAPS),$(BUILD)/$(name).map.fth)
 4BMAPS=title tiled-bg
 4BMAPS_FTH=$(foreach name,$(4BMAPS),$(BUILD)/$(name).map.fth)
-4BSPRITES=pickles
+4BSPRITES=sprites
 4BSPRITES_FTH=$(foreach name,$(4BSPRITES),$(BUILD)/$(name).spr.fth)
 
 $(BUILD)/game.out.s: joypad.fth sin-lut.fth oam.fth vram.fth cgram.fth wram.fth $(ISOMAPS_FTH) $(4BMAPS_FTH) $(4BSPRITES_FTH) font.fth audio.fth scrolling-bg.fth steps.fth text-overlay.fth stage.fth title.fth end.fth map.fth
