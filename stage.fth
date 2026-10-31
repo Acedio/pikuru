@@ -60,7 +60,7 @@ BANK!
 
 0x1D00 CONSTANT STAGE-BACKDROP-COLOR
 
-12 CONSTANT RUN-SPEED
+24 CONSTANT RUN-SPEED
 0x2000 CONSTANT DASH-SPEED
 0x0400 CONSTANT DASH-DECAY
 
@@ -314,11 +314,9 @@ DROP
       TEMP-X @ OVER BOX-ISO-X + !
       TEMP-Y @ OVER BOX-ISO-Y + !
       TEMP-Z @ OVER BOX-ISO-Z + !
-      \ TODO: For performance reasons, just draw the last shadow for now.
-      NUM-BOXES 1- I = IF
-        TEMP-X @ TEMP-Y @ ISO-Z
-        OVER BOX-SHADOW-ISO-Z + !
-      THEN
+
+      TEMP-X @ TEMP-Y @ ISO-Z
+      OVER BOX-SHADOW-ISO-Z + !
     DROP
 
     BOX-ISO-DELTA-X @ TEMP-X +!
@@ -365,12 +363,7 @@ DROP
 
     BOX0-OAM-OBJECT NUM-BOXES 1- + I - OVER DRAW-BOX
 
-    \ TODO: For performance reasons, just draw the last shadow for now.
-    NUM-BOXES 1- I = IF \ box-addr
-      BOX0-SHADOW-OAM-OBJECT NUM-BOXES 1- + I - SWAP DRAW-BOX-SHADOW
-    ELSE
-      DROP
-    THEN
+    BOX0-SHADOW-OAM-OBJECT NUM-BOXES 1- + I - SWAP DRAW-BOX-SHADOW
   LOOP
 ;
 
@@ -559,14 +552,14 @@ DROP
 
 \ The amount of acceleration based on how far away the top box is.
 : ACCEL-FROM-DISTANCE ( iso-distance -- acceleration )
-  2/TZ 2/TZ 2/TZ 2/TZ
+  2/TZ 2/TZ 2/TZ
 ;
 
 : UPDATE-BOX
   TOP-BOX-ISO-X @ PLAYER-ISO-X @ - ACCEL-FROM-DISTANCE TOP-BOX-VEL-X +!
   TOP-BOX-ISO-Y @ PLAYER-ISO-Y @ - ACCEL-FROM-DISTANCE TOP-BOX-VEL-Y +!
-  TOP-BOX-VEL-X @ DUP 2* 256/TZ - TOP-BOX-VEL-X !
-  TOP-BOX-VEL-Y @ DUP 2* 256/TZ - TOP-BOX-VEL-Y !
+  TOP-BOX-VEL-X @ DUP 2* 2* 256/TZ - TOP-BOX-VEL-X !
+  TOP-BOX-VEL-Y @ DUP 2* 2* 256/TZ - TOP-BOX-VEL-Y !
   TOP-BOX-VEL-X @ 8.8-INT-PART TOP-BOX-ISO-X +!
   TOP-BOX-VEL-Y @ 8.8-INT-PART TOP-BOX-ISO-Y +!
 ;
