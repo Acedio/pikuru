@@ -829,7 +829,7 @@ DROP
     DROP 224 \ Standing still.
   ;THEN
   DUP 2 < IF
-    96
+    DROP 96
   ;THEN
   2 -
   DUP 5 < IF
@@ -837,7 +837,7 @@ DROP
   ;THEN
   5 -
   DUP 2 < IF
-    106
+    DROP 106
   ;THEN
   2 -
   DUP 3 < IF
