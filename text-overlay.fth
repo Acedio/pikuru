@@ -4,6 +4,7 @@ REQUIRE font.fth
 REQUIRE cgram.fth
 REQUIRE snes-std.fth
 REQUIRE vram.fth
+REQUIRE wram.fth
 
 BANK@
 LOWRAM BANK!
@@ -31,8 +32,7 @@ BANK!
 
 \ Converts ASCII string (bytes) to tile references (words where 0 = space, 1 =
 \ !, etc). Ignores 0x0A (line feed) characters.
-( addr u tilemap-addr -- )
-: COPY-STRING-TO-TILES
+: COPY-STRING-TO-TILES ( addr u tilemap-addr -- )
   SWAP CELLS OVER + SWAP DO
     BEGIN
       DUP 1+ SWAP
@@ -49,7 +49,37 @@ BANK!
   1 CELLS +LOOP DROP
 ;
 
-: TEXT-OVERLAY-NMI
+\ Converts ASCII string (bytes) to tile references (words where 0 = space, 1 =
+\ !, etc) and writes to the current code bank. Ignores 0x0A (line feed) chars.
+: TEXT" ( runtime: -- addr bytes )
+  ['] DOS" COMPILE,
+  CODEHERE 0 COMPILE-WORD
+  \ Discard the first space.
+  KEY DROP
+  \ Keep track of the length.
+  0
+  BEGIN
+    KEY
+    DUP [CHAR] " <>
+  WHILE
+    DUP 0x0A = IF
+      \ Ignore newlines.
+      DROP
+    ELSE
+      \ Convert to text tile offset (missing the first 0x20 control characters).
+      0x20 -
+      \ Give text tiles priority over others. (bit 5 of $2105 ensures they show
+      \ over other backgrounds).
+      0x2000 OR
+      COMPILE-WORD 1+
+    THEN
+  REPEAT
+  DROP
+  \ 1 cell per character.
+  CELLS SWAP CODE!
+; IMMEDIATE
+
+: TEXT-OVERLAY-NMI ( -- done )
   TEXT-OVERLAY-NMI-STATE @ CASE
     \ Happy path first.
     3 OF
@@ -95,27 +125,14 @@ BANK!
 
   BG3-SHADOW-TILEMAP ZERO-BGTILEMAP
 
-  S"                                
-                                
-                                
-                                
-                                
-                                
-                                
-                                
-                                
-                                
-                                
+TEXT"
           Press Start!          
                                 
                                 
                           Acedio
                        Jason199X
-                    CornetTheory"
-  DROP [ 32 17 * COMPILE-LIT ] BG3-SHADOW-TILEMAP 0 10 TILEMAP-XY CELLS + COPY-STRING-TO-TILES
+                    CornetTheory
+"
 
-  \ STEPS-STRING BG3-SHADOW-TILEMAP 26 11 TILEMAP-XY CELLS + COPY-STRING-TO-TILES
-;
-
-: TEXT-OVERLAY-MAIN
+  PHK SWAP BG3-SHADOW-TILEMAP 0 21 TILEMAP-XY CELLS + 0 DMA0-WRAM-LONG-TRANSFER
 ;
