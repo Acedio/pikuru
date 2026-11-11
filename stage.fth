@@ -642,15 +642,16 @@ DROP
     7 OF
       FADE-IN DROP
 
+      \ TODO: This seems to cause graphical issues if we run the copy later in
+      \ the NMI. Why?
+      COPY-OAM
+
       MAP-NMI DROP
       SCROLLING-BG-NMI DROP
       TEXT-OVERLAY-NMI DROP
 
       \ Set 16x16 and 64x64 for OAM sizes, and set the tile base.
       0x80 OAM-TILE-BASE OR 0x2101 C!
-
-      \ TODO: Copying this below STARS-NMI causes issues.
-      COPY-OAM
 
       \ Enable sprite layer and BG1.
       0x11 0x11 BG-LAYER-ENABLE MASK!
