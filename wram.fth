@@ -28,3 +28,28 @@ REQUIRE std.fth
   0x01 0x420B C!
 ;
 
+HERE
+0 ,
+CONSTANT THERES-A-ZERO-HERE
+
+\ to-page is either 0 (for the first 64k, page 7E) or 1 (page 7F)
+( bytes to to-page -- )
+: DMA0-ZERO-WRAM
+  \ Set up WRAM reg.
+  0x2183 C! \ "page", though it's actually just 1 bit for either 7E or 7F.
+  0x2181 !  \ Lower word of addr.
+
+  \ Number of copies (bytes)
+  0x4305 !
+  \ Page
+  PHK 0x4304 C!
+  \ Transfer from
+  THERES-A-ZERO-HERE 0x4302 !
+  \ Copy to same addr repeatedly, don't increment source address.
+  0x08 0x4300 C!
+  \ Copy to WRAM reg
+  WMDATA 0xFF AND 0x4301 C!
+
+  \ Start DMA transfer.
+  0x01 0x420B C!
+;

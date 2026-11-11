@@ -1,6 +1,7 @@
 REQUIRE std.fth
 
 REQUIRE snes-std.fth
+REQUIRE wram.fth
 
 ( from from-page bytes to -- )
 : DMA0-VRAM-LONG-TRANSFER
@@ -39,7 +40,8 @@ REQUIRE snes-std.fth
 
 ( tilemap-addr -- )
 : ZERO-BGTILEMAP
-  BGTILEMAP-TILE-COUNT BGTILEMAP-ENTRIES ZERO-FILL
+  \ TODO: This assumes page 0.
+  BGTILEMAP-TILE-COUNT BGTILEMAP-ENTRIES SWAP 0 DMA0-ZERO-WRAM
 ;
 
 \ Set up shadow registers.
