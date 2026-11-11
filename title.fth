@@ -130,6 +130,7 @@ BANK!
 
 ( ticks -- )
 : UPDATE-BOBBLE
+  2* \ Slightly speed up our bobble.
   0xFF AND
   SIN-LUT \ Output ranges from 0x8001 to 0x7FFF
   2^12/

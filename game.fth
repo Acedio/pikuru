@@ -19,6 +19,7 @@ BANK!
 BANK@
 LOWRAM BANK!
 CREATE NMI-READY 1 CELLS ALLOT
+CREATE NMI-SKIP-FRAME 1 CELLS ALLOT
 CREATE NMI-STATE 1 CELLS ALLOT
 CREATE GAME-STATE 1 CELLS ALLOT
 BANK!
@@ -27,11 +28,22 @@ BANK!
 1 CONSTANT GAME-STATE-STAGE
 
 : SNES-NMI
+  \ Skip every other frame for 30FPS.
+  NMI-SKIP-FRAME @ IF
+    FALSE NMI-SKIP-FRAME !
+  ;THEN
+
   NMI-READY @ 0= IF
     \ We missed a frame.
+    BREAKPOINT
     1 MISSED-FRAMES +!
     EXIT
   THEN
+
+  \ Only reset the frame skip if the frame was actually ready on time. If we do
+  \ miss a frame we should try and run it immediately instead of waiting for the
+  \ next 30FPS frame.
+  TRUE NMI-SKIP-FRAME !
 
   FALSE NMI-READY !
 
@@ -66,6 +78,7 @@ BANK!
 
 : SNES-MAIN
   FALSE NMI-READY !
+  TRUE NMI-SKIP-FRAME !
   0 NMI-STATE !
   GAME-STATE-TITLE GAME-STATE !
   0 MISSED-FRAMES !
